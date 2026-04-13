@@ -29,17 +29,17 @@ class ServerDeliveryState:
 
     def evaluate_delivery(self, battery_level=100):
         """
-        Choice pseudostate: evaluates battery level and routes accordingly.
-        [Battery OK] -> calculate_path
-        [Unexpected Battery Drainage] -> recalculate_drone_path
+        Compound transition (choice): returns the target state based on battery level.
+        [Battery OK] -> 'calculate_path'
+        [Unexpected Battery Drainage] -> 'recalculate_drone_path'
         """
         self.logger.info(f"[{self.name}] Evaluating scheduleDelivery (Battery: {battery_level}%)...")
         if battery_level >= 20:
             self.logger.info(f"[{self.name}] Decision: [Battery OK]")
-            self._machine.send('battery_ok')
+            return 'calculate_path'
         else:
             self.logger.info(f"[{self.name}] Decision: [Unexpected Battery Drainage]")
-            self._machine.send('unexpected_drainage')
+            return 'recalculate_drone_path'
 
 
 def create_server_delivery_machine(name):
@@ -52,40 +52,28 @@ def create_server_delivery_machine(name):
     t_schedule = {
         'trigger': 'scheduleDelivery',
         'source': 'monitoring',
-        'target': 'evaluating_choice',
-        'effect': 'evaluate_delivery(*)'
-    }
-    t_battery_ok = {
-        'trigger': 'battery_ok',
-        'source': 'evaluating_choice',
-        'target': 'calculate_path',
-        'effect': 'start_timer("calc_timer", 500)'
-    }
-    t_drainage = {
-        'trigger': 'unexpected_drainage',
-        'source': 'evaluating_choice',
-        'target': 'recalculate_drone_path',
-        'effect': 'start_timer("recalc_timer", 500)'
+        'function': server.evaluate_delivery,
+        'targets': 'calculate_path recalculate_drone_path'
     }
     t_calculated = {
         'trigger': 'calc_timer',
         'source': 'calculate_path',
         'target': 'dispatch',
-        'effect': 'send("inTransit")'
+        'effect': 'start_timer("dispatch_timer", 100)'
     }
     t_recalculated = {
         'trigger': 'recalc_timer',
         'source': 'recalculate_drone_path',
         'target': 'reroute',
-        'effect': 'send("inTransit")'
+        'effect': 'start_timer("reroute_timer", 100)'
     }
     t_dispatch_transit = {
-        'trigger': 'inTransit',
+        'trigger': 'dispatch_timer',
         'source': 'dispatch',
         'target': 'monitoring'
     }
     t_reroute_transit = {
-        'trigger': 'inTransit',
+        'trigger': 'reroute_timer',
         'source': 'reroute',
         'target': 'monitoring'
     }
@@ -96,7 +84,6 @@ def create_server_delivery_machine(name):
         {'name': 'recalculate_drone_path', 'entry': 'on_recalculate_path'},
         {'name': 'dispatch', 'entry': 'on_dispatch'},
         {'name': 'reroute', 'entry': 'on_reroute'},
-        {'name': 'evaluating_choice'}
     ]
 
     machine = stmpy.Machine(
@@ -104,8 +91,6 @@ def create_server_delivery_machine(name):
         transitions=[
             t0,
             t_schedule,
-            t_battery_ok,
-            t_drainage,
             t_calculated,
             t_recalculated,
             t_dispatch_transit,
@@ -114,7 +99,6 @@ def create_server_delivery_machine(name):
         states=states,
         obj=server
     )
-    server._machine = machine
     return machine, server
 
 
