@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Delivery</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div id="sidebar">
+        <h1>Drone Delivery</h1>
+
+        <section id="orders-section">
+            <h2>Your Orders</h2>
+            <ul id="order-list"></ul>
+            <p id="no-orders">No orders yet</p>
+        </section>
+
+        <section id="shop-list">
+            <h2>Shops</h2>
+            <ul id="shops"></ul>
+        </section>
+
+        <section id="shop-detail" class="hidden">
+            <button id="back-btn">Back</button>
+            <h2 id="shop-name"></h2>
+            <ul id="items"></ul>
+        </section>
+
+        <section id="order-status" class="hidden">
+            <h2>Your Order</h2>
+            <div id="status-content"></div>
+            <button id="new-order-btn">New Order</button>
+        </section>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

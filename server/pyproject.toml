@@ -8,4 +8,5 @@ dependencies = [
     "flask>=3.1.0",
     "paho-mqtt>=2.1.0",
     "stmpy>=0.7.5",
+    "pyyaml>=6.0",
 ]

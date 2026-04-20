@@ -1,0 +1,54 @@
+# Drone Configuration
+drone:
+  # Unique identifier for this drone (should match the drone_id in the server config)
+  drone_id: "1"
+
+  # Telemetry publishing interval in seconds
+  telemetry_interval: 2.0
+
+# MQTT Broker Configuration
+mqtt:
+  broker_host: "mqtt20.iik.ntnu.no"
+  broker_port: 1883
+  websocket_port: 1884
+  client_id_prefix: "drone"
+  qos: 1
+  # Prefix for all MQTT topics (must match server's prefix)
+  topic_prefix: "ttm4115/team13"
+  topics:
+    telemetry: "drones/{drone_id}/telemetry"
+    dispatch: "drones/{drone_id}/dispatch"
+    events: "drones/{drone_id}/events"
+
+# Battery Management Configuration
+battery:
+  # Minimum battery level to accept a new delivery
+  min_battery_for_delivery: 20.0
+
+  # Battery level at which to start searching for charging
+  charging_threshold: 30.0
+
+  # Battery level considered fully charged
+  fully_charged_threshold: 95.0
+
+  # Battery consumption rate per km (approximate)
+  consumption_rate_per_km: 0.5
+
+# Charging Configuration
+charging:
+  # Time to fully charge in minutes
+  full_charge_time_minutes: 30
+
+  # Charging status update interval in seconds
+  status_update_interval: 5.0
+
+# Simulation Configuration (for testing without real hardware)
+simulation:
+  # Enable simulation mode (fakes GPS and battery)
+  enabled: true
+
+  # Simulated battery drain per second
+  battery_drain_per_second: 0.01
+
+  # Simulated movement speed in m/s
+  movement_speed_mps: 5.0
