@@ -1,80 +1,45 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session
 import uuid
 import math
 from datetime import datetime, timezone
 import stmpy
 
+from config_loader import (
+    parse_args,
+    load_config,
+    get_secret_key,
+    get_server_settings,
+    load_shops,
+    load_drones,
+    get_battery_config,
+)
 from delivery_state import create_delivery_machine
 from client_state import create_client_machine
 
+# Parse CLI args and load config
+args = parse_args()
+config = load_config(args.config)
+
+# No user auth system -- sessions are anonymous browser cookies.
+# Each browser gets a unique session_id to isolate their orders.
 app = Flask(__name__)
+app.secret_key = get_secret_key(config)
+
+
+@app.before_request
+def ensure_session_id():
+    if "session_id" not in session:
+        session["session_id"] = str(uuid.uuid4())
 
 driver = stmpy.Driver()
 driver.start(keep_active=True)
 
-shops: dict[str, dict] = {
-    "SHOP-001": {
-        "shop_id": "SHOP-001",
-        "name": "Midtbyen Convenience",
-        "lat": 63.4305,
-        "lon": 10.3951,
-        "items": [
-            {"item_id": "ITM-01", "name": "Coffee", "weight": 0.3},
-            {"item_id": "ITM-02", "name": "Sandwich", "weight": 0.4},
-            {"item_id": "ITM-03", "name": "Energy Drink", "weight": 0.5},
-        ],
-    },
-    "SHOP-002": {
-        "shop_id": "SHOP-002",
-        "name": "Gloshaugen Market",
-        "lat": 63.4157,
-        "lon": 10.4060,
-        "items": [
-            {"item_id": "ITM-04", "name": "Pizza Slice", "weight": 0.5},
-            {"item_id": "ITM-05", "name": "Salad Bowl", "weight": 0.6},
-            {"item_id": "ITM-06", "name": "Sparkling Water", "weight": 0.4},
-        ],
-    },
-    "SHOP-003": {
-        "shop_id": "SHOP-003",
-        "name": "Solsiden Bakery",
-        "lat": 63.4342,
-        "lon": 10.4162,
-        "items": [
-            {"item_id": "ITM-07", "name": "Cinnamon Roll", "weight": 0.2},
-            {"item_id": "ITM-08", "name": "Baguette", "weight": 0.4},
-            {"item_id": "ITM-09", "name": "Hot Chocolate", "weight": 0.3},
-        ],
-    },
-    "SHOP-004": {
-        "shop_id": "SHOP-004",
-        "name": "Heimdal Pharmacy",
-        "lat": 63.4080,
-        "lon": 10.3500,
-        "items": [
-            {"item_id": "ITM-10", "name": "First Aid Kit", "weight": 0.5},
-            {"item_id": "ITM-11", "name": "Pain Relief", "weight": 0.1},
-            {"item_id": "ITM-12", "name": "Bandages", "weight": 0.2},
-        ],
-    },
-}
+# Load shops and drones from config
+shops: dict[str, dict] = load_shops(config)
+drones: dict[str, dict] = load_drones(config)
 
-drones: dict[str, dict] = {
-    "Drone1": {
-        "drone_id": "1",
-        "location": {"lat": 63.4157, "lon": 10.4060, "gps_valid": True},
-        "battery_level": 95.0,
-        "max_payload": 2.5,
-        "state": "standby",
-    },
-    "Drone2": {
-        "drone_id": "2",
-        "location": {"lat": 63.4342, "lon": 10.3962, "gps_valid": True},
-        "battery_level": 45.0,
-        "max_payload": 2.5,
-        "state": "standby",
-    },
-}
+# Battery config
+battery_config = get_battery_config(config)
 
 orders: dict[str, dict] = {}
 
@@ -95,12 +60,14 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def find_best_drone(shop_lat: float, shop_lon: float, weight: float) -> dict | None:
     best: dict | None = None
     best_dist: float = float("inf")
+    min_battery = battery_config.get("min_battery_for_delivery", 20.0)
+
     for drone in drones.values():
         if drone["state"] != "standby":
             continue
         if weight > drone["max_payload"]:
             continue
-        if drone["battery_level"] < 20:
+        if drone["battery_level"] < min_battery:
             continue
         dist = haversine(
             drone["location"]["lat"],
@@ -127,8 +94,11 @@ def get_shops():
 @app.route("/api/orders", methods=["GET", "POST"])
 def handle_orders():
     if request.method == "GET":
+        sid = session["session_id"]
         result = []
         for order in orders.values():
+            if order["session_id"] != sid:
+                continue
             drone_key = f"Drone{order['drone']['drone_id']}"
             if drone_key in drones:
                 live = drones[drone_key]
@@ -172,6 +142,7 @@ def handle_orders():
 
     order = {
         "order_id": order_id,
+        "session_id": session["session_id"],
         "shop_id": data["shop_id"],
         "shop_name": shop["name"],
         "shop_lat": shop["lat"],
@@ -207,7 +178,7 @@ def handle_orders():
 @app.route("/api/orders/<order_id>")
 def get_order(order_id: str):
     order = orders.get(order_id)
-    if not order:
+    if not order or order["session_id"] != session["session_id"]:
         return jsonify({"error": "Order not found"}), 404
     drone_key = f"Drone{order['drone']['drone_id']}"
     if drone_key in drones:
@@ -219,4 +190,5 @@ def get_order(order_id: str):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    settings = get_server_settings(config)
+    app.run(**settings)
