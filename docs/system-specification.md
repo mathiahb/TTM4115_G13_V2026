@@ -135,6 +135,7 @@ We aim to make package deliveries more efficient by using autonomous self-chargi
 The following markdown files in the `docs` folder contain the visual diagrams corresponding to this specification:
 
 * **Deployment**: [Deployment Diagram](deployment-diagram.md)
+* **Contracts**: [MQTT Contract](mqtt-contract.md)
 * **Sequence Diagrams**:
   * [Use Case 1 (Calculate route)](use-case-1-sequence.md)
   * [Use Case 2 (Place an order)](use-case-2-sequence.md)

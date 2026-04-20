@@ -14,7 +14,7 @@
         <section id="orders-section">
             <h2>Your Orders</h2>
             <ul id="order-list"></ul>
-            <p id="no-orders">No orders yet</p>
+            <p id="no-orders" class="hidden">No orders yet</p>
         </section>
 
         <section id="shop-list">
@@ -33,6 +33,33 @@
             <div id="status-content"></div>
             <button id="new-order-btn">New Order</button>
         </section>
+    </div>
+
+    <div id="confirm-overlay" class="hidden">
+        <div id="confirm-modal">
+            <h2>Confirm Order</h2>
+            <div id="confirm-item"></div>
+            <div id="confirm-priority">
+                <label>
+                    <input type="radio" name="priority" value="standard" checked />
+                    <span class="priority-option">
+                        <strong>Standard</strong>
+                        <span>Normal delivery speed</span>
+                    </span>
+                </label>
+                <label>
+                    <input type="radio" name="priority" value="priority" />
+                    <span class="priority-option">
+                        <strong>Priority</strong>
+                        <span>Expedited delivery</span>
+                    </span>
+                </label>
+            </div>
+            <div id="confirm-actions">
+                <button id="confirm-cancel">Cancel</button>
+                <button id="confirm-submit">Place Order</button>
+            </div>
+        </div>
     </div>
 
     <div id="map"></div>
