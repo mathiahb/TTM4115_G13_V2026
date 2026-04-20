@@ -1,0 +1,10 @@
+services:
+  server:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/config.yaml:/app/config.yaml:ro
+    environment:
+      - FLASK_SECRET=${FLASK_SECRET:-dev-secret-change-in-prod}
+    restart: unless-stopped

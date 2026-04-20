@@ -1,27 +1,30 @@
-from flask import Flask, render_template, jsonify, request, session
-import uuid
+import atexit
+import logging
 import math
+import uuid
 from datetime import datetime, timezone
+
 import stmpy
+from flask import Flask, jsonify, render_template, request, session
 
 from config_loader import (
-    parse_args,
-    load_config,
+    get_battery_config,
     get_secret_key,
     get_server_settings,
-    load_shops,
+    load_config,
     load_drones,
-    get_battery_config,
+    load_shops,
+    parse_args,
 )
 from delivery_state import create_delivery_machine
+from mqtt_client import MQTTClient
 from client_state import create_client_machine
 
-# Parse CLI args and load config
+logging.basicConfig(level=logging.INFO)
+
 args = parse_args()
 config = load_config(args.config)
 
-# No user auth system -- sessions are anonymous browser cookies.
-# Each browser gets a unique session_id to isolate their orders.
 app = Flask(__name__)
 app.secret_key = get_secret_key(config)
 
@@ -31,17 +34,46 @@ def ensure_session_id():
     if "session_id" not in session:
         session["session_id"] = str(uuid.uuid4())
 
+
 driver = stmpy.Driver()
 driver.start(keep_active=True)
 
-# Load shops and drones from config
 shops: dict[str, dict] = load_shops(config)
 drones: dict[str, dict] = load_drones(config)
-
-# Battery config
 battery_config = get_battery_config(config)
 
 orders: dict[str, dict] = {}
+
+EVENT_TRIGGER_MAP = {
+    "arrived": "drone_arrived",
+    "package_loaded": "package_loaded",
+    "delivery_completed": "delivery_completed",
+    "battery_depleted": "battery_depleted",
+}
+
+
+def handle_drone_event(
+    event_type: str, drone_id: str, order_id: str | None, data: dict
+):
+    trigger = EVENT_TRIGGER_MAP.get(event_type)
+    if not trigger:
+        return
+
+    if order_id and order_id in orders:
+        driver.send(trigger, order_id)
+        return
+
+    for oid, order in orders.items():
+        if order.get("status") in ("completed", "cancelled", "aborted"):
+            continue
+        if order.get("drone", {}).get("drone_id") == drone_id:
+            driver.send(trigger, oid)
+            return
+
+
+mqtt = MQTTClient(config, drones, on_drone_event=handle_drone_event)
+mqtt.start()
+atexit.register(mqtt.stop)
 
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -163,7 +195,7 @@ def handle_orders():
     orders[order_id] = order
 
     client_machine = create_client_machine(order_id, orders)
-    delivery_machine = create_delivery_machine(order_id, orders, drones)
+    delivery_machine = create_delivery_machine(order_id, orders, drones, mqtt)
 
     driver.add_machine(client_machine)
     driver.add_machine(delivery_machine)

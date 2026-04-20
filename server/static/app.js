@@ -7,9 +7,8 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 let shops = [];
 let selectedShop = null;
 let currentOrder = null;
-let activeRoute = null;
-let pollTimer = null;
 let previousView = null;
+let pendingOrder = null;
 
 function saveView() {
     previousView = { center: map.getCenter(), zoom: map.getZoom() };
@@ -125,7 +124,6 @@ async function viewOrder(orderId) {
     const pos = [currentOrder.drone.location.lat, currentOrder.drone.location.lon];
     const shopPos = [currentOrder.shop_lat, currentOrder.shop_lon];
     map.fitBounds(L.latLngBounds(pos, shopPos), { padding: [50, 50] });
-    startPolling();
 }
 
 function showShopItems(shop) {
@@ -141,18 +139,40 @@ function showShopItems(shop) {
     shop.items.forEach((item) => {
         const li = document.createElement("li");
         li.innerHTML = `<span>${item.name}</span><button>Order</button>`;
-        li.querySelector("button").addEventListener("click", () => placeOrder(shop.shop_id, item.item_id));
+        li.querySelector("button").addEventListener("click", () => showConfirm(shop, item));
         ul.appendChild(li);
     });
 
     map.flyTo([shop.lat, shop.lon], 15);
 }
 
-async function placeOrder(shopId, itemId) {
+function showConfirm(shop, item) {
+    pendingOrder = { shop, item };
+    document.getElementById("confirm-item").textContent =
+        `${item.name} from ${shop.name}`;
+    document.querySelector('input[name="priority"][value="standard"]').checked = true;
+    show("confirm-overlay");
+}
+
+document.getElementById("confirm-cancel").addEventListener("click", () => {
+    pendingOrder = null;
+    hide("confirm-overlay");
+});
+
+document.getElementById("confirm-submit").addEventListener("click", () => {
+    if (!pendingOrder) return;
+    const priority = document.querySelector('input[name="priority"]:checked').value;
+    const { shop, item } = pendingOrder;
+    pendingOrder = null;
+    hide("confirm-overlay");
+    placeOrder(shop.shop_id, item.item_id, priority);
+});
+
+async function placeOrder(shopId, itemId, priority) {
     const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shop_id: shopId, item_id: itemId }),
+        body: JSON.stringify({ shop_id: shopId, item_id: itemId, priority }),
     });
 
     if (!res.ok) {
@@ -169,7 +189,6 @@ async function placeOrder(shopId, itemId) {
     const pos = [currentOrder.drone.location.lat, currentOrder.drone.location.lon];
     const shopPos = [currentOrder.shop_lat, currentOrder.shop_lon];
     map.fitBounds(L.latLngBounds(pos, shopPos), { padding: [50, 50] });
-    startPolling();
 }
 
 function renderStatus(order) {
@@ -185,28 +204,7 @@ function renderStatus(order) {
     `;
 }
 
-function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(async () => {
-        loadOrders();
-        if (currentOrder) {
-            const res = await fetch(`/api/orders/${currentOrder.order_id}`);
-            if (!res.ok) return;
-            currentOrder = await res.json();
-            renderStatus(currentOrder);
-        }
-    }, 2000);
-}
-
-function stopPolling() {
-    if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
-
 function resetView() {
-    stopPolling();
     currentOrder = null;
     selectedShop = null;
     hide("order-status");
