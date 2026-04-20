@@ -3,6 +3,7 @@ import logging
 import paho.mqtt.client as mqtt
 from datetime import datetime, timezone
 import stmpy
+from config_loader import get_mqtt_topic
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,10 @@ class DroneMQTTHandler:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
 
-        # Topics
-        self.telemetry_topic = f"drones/{self.drone_id}/telemetry"
-        self.dispatch_topic = f"drones/{self.drone_id}/dispatch"
-        self.events_topic = f"drones/{self.drone_id}/events"
+        # Topics with prefix from config
+        self.telemetry_topic = get_mqtt_topic(self.config, 'telemetry', self.drone_id)
+        self.dispatch_topic = get_mqtt_topic(self.config, 'dispatch', self.drone_id)
+        self.events_topic = get_mqtt_topic(self.config, 'events', self.drone_id)
 
         # Current order ID (set when dispatch received)
         self.current_order_id = None
