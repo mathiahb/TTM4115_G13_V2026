@@ -3,7 +3,7 @@ import logging
 import paho.mqtt.client as mqtt
 from datetime import datetime, timezone
 import stmpy
-from config_loader import get_mqtt_topic
+from config_loader import get_mqtt_topic, get_mqtt_broker_host, get_mqtt_broker_port, get_telemetry_interval
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,9 @@ class DroneMQTTHandler:
         self.config = config or {}
         self.drone_id = drone_id
 
-        # Extract MQTT config from config dict, with CLI overrides
-        mqtt_cfg = self.config.get('mqtt', {})
-        self.broker_host = broker_host or mqtt_cfg.get('broker_host', 'localhost')
-        self.broker_port = broker_port or mqtt_cfg.get('broker_port', 1883)
-        self.telemetry_interval = self.config.get('drone', {}).get('telemetry_interval', 5000)
+        self.broker_host = broker_host or get_mqtt_broker_host(self.config)
+        self.broker_port = broker_port or get_mqtt_broker_port(self.config)
+        self.telemetry_interval = get_telemetry_interval(self.config)
 
         # MQTT client setup
         self.client = mqtt.Client()

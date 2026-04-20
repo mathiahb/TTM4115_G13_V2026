@@ -1,6 +1,6 @@
 import logging
 import stmpy
-from config_loader import load_config, parse_args, get_drone_id, get_mqtt_config, get_telemetry_interval
+from config_loader import load_config, parse_args, get_drone_id
 from simulated_drone import SimulatedDrone
 from mqtt_handler import DroneMQTTHandler
 from sense_hat_display import SenseHATDisplay
@@ -34,7 +34,6 @@ def main():
         display.set_state('standby')
 
     # Initialize MQTT handler
-    mqtt_cfg = get_mqtt_config(config)
     mqtt_handler = DroneMQTTHandler(drone, driver, config, drone_id=drone_id)
     mqtt_handler.connect()
     mqtt_handler.start()

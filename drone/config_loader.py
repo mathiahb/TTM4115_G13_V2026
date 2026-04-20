@@ -3,6 +3,7 @@
 import argparse
 import os
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -56,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_drone_id(config: dict, override: str | None = None) -> str:
+def get_drone_id(config: dict, override: Optional[str] = None) -> str:
     """Get the drone ID from config or CLI override.
 
     Args:
@@ -85,7 +86,19 @@ def get_mqtt_config(config: dict) -> dict:
     return config.get("mqtt", {})
 
 
-def get_mqtt_topic(config: dict, topic_name: str, drone_id: str | None = None) -> str:
+def get_mqtt_broker_host(config: dict) -> str:
+    """Get MQTT broker host from config."""
+    mqtt_cfg = get_mqtt_config(config)
+    return mqtt_cfg.get("broker_host", "localhost")
+
+
+def get_mqtt_broker_port(config: dict) -> int:
+    """Get MQTT broker port from config."""
+    mqtt_cfg = get_mqtt_config(config)
+    return int(mqtt_cfg.get("broker_port", 1883))
+
+
+def get_mqtt_topic(config: dict, topic_name: str, drone_id: Optional[str] = None) -> str:
     """Build a full MQTT topic name with prefix and optional drone_id substitution.
 
     Args:
@@ -111,6 +124,49 @@ def get_mqtt_topic(config: dict, topic_name: str, drone_id: str | None = None) -
     if prefix:
         return f"{prefix}/{pattern}"
     return pattern
+
+
+def get_movement_config(config: dict) -> dict:
+    """Extract movement configuration.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary with movement settings.
+    """
+    return config.get("movement", {})
+
+
+def get_display_config(config: dict) -> dict:
+    """Extract display configuration.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary with display settings.
+    """
+    return config.get("display", {})
+
+
+def get_display_colors(config: dict) -> dict:
+    """Get display color mapping from config.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary mapping state names to RGB colors.
+    """
+    display_cfg = get_display_config(config)
+    return display_cfg.get("colors", {})
+
+
+def get_display_enabled(config: dict) -> bool:
+    """Check whether the display is enabled in config."""
+    display_cfg = get_display_config(config)
+    return bool(display_cfg.get("enabled", True))
 
 
 def get_battery_config(config: dict) -> dict:
@@ -149,14 +205,7 @@ def get_simulation_config(config: dict) -> dict:
     return config.get("simulation", {})
 
 
-def get_telemetry_interval(config: dict) -> float:
-    """Get telemetry publishing interval.
-
-    Args:
-        config: Configuration dictionary.
-
-    Returns:
-        Interval in seconds.
-    """
+def get_telemetry_interval(config: dict) -> int:
+    """Get telemetry publishing interval in milliseconds."""
     drone_cfg = config.get("drone", {})
-    return drone_cfg.get("telemetry_interval", 2.0)
+    return int(drone_cfg.get("telemetry_interval", 2000))

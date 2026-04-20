@@ -1,6 +1,7 @@
 import logging
 import math
 import stmpy
+from config_loader import get_movement_config
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class SimulatedDrone:
         self.display = None
 
         # Load movement configuration
-        movement_cfg = self.config.get('movement', {})
+        movement_cfg = get_movement_config(self.config)
         self.travel_speed = movement_cfg.get('travel_speed', 3.0)
         self.battery_drain_per_second = movement_cfg.get('battery_drain_per_second', 1.5)
         self.arrival_threshold = movement_cfg.get('arrival_threshold', 0.25)

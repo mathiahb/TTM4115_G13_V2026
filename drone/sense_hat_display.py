@@ -1,4 +1,5 @@
 import logging
+from config_loader import get_display_colors, get_display_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -28,18 +29,20 @@ class SenseHATDisplay:
         self.current_state = None
         self.animation_frame = 0
 
-        # Load colors from config or use defaults
-        display_cfg = self.config.get('display', {})
-        self.colors = display_cfg.get('colors', self.DEFAULT_COLORS.copy())
+        self.colors = get_display_colors(self.config) or self.DEFAULT_COLORS.copy()
         # Fill in any missing colors from defaults
         for state, color in self.DEFAULT_COLORS.items():
             if state not in self.colors:
                 self.colors[state] = color
+        self.enabled = get_display_enabled(self.config)
+
+        if not self.enabled:
+            logger.info("Sense HAT display disabled by configuration")
+            return
 
         try:
             from sense_hat import SenseHat
             self.sense = SenseHat()
-            self.enabled = True
             logger.info("Sense HAT initialized successfully")
         except ImportError:
             logger.warning("Sense HAT library not available - LED display disabled")
