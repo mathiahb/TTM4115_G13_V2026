@@ -9,8 +9,8 @@ class SenseHATDisplay:
     Shows drone state through colors and patterns.
     """
 
-    # Color definitions (R, G, B)
-    COLORS = {
+    # Default color definitions (R, G, B)
+    DEFAULT_COLORS = {
         'standby': (0, 255, 0),           # Green
         'charge': (255, 255, 0),          # Yellow
         'travel_to_warehouse': (0, 100, 255),  # Blue
@@ -21,11 +21,20 @@ class SenseHATDisplay:
         'off': (0, 0, 0),                 # Off
     }
 
-    def __init__(self):
+    def __init__(self, config=None):
+        self.config = config or {}
         self.sense = None
         self.enabled = False
         self.current_state = None
         self.animation_frame = 0
+
+        # Load colors from config or use defaults
+        display_cfg = self.config.get('display', {})
+        self.colors = display_cfg.get('colors', self.DEFAULT_COLORS.copy())
+        # Fill in any missing colors from defaults
+        for state, color in self.DEFAULT_COLORS.items():
+            if state not in self.colors:
+                self.colors[state] = color
 
         try:
             from sense_hat import SenseHat
@@ -45,7 +54,7 @@ class SenseHATDisplay:
             return
 
         self.current_state = state
-        color = self.COLORS.get(state, self.COLORS['off'])
+        color = self.colors.get(state, self.colors['off'])
 
         try:
             # Fill entire matrix with state color
@@ -98,7 +107,7 @@ class SenseHATDisplay:
         if not self.enabled or not self.sense:
             return
 
-        target_color = color if color else self.COLORS.get(self.current_state, self.COLORS['standby'])
+        target_color = color if color else self.colors.get(self.current_state, self.colors['standby'])
 
         try:
             # Pulse effect: fade in and out

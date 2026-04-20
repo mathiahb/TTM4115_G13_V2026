@@ -5,26 +5,11 @@ import stmpy
 logger = logging.getLogger(__name__)
 
 
-class DroneConfig:
-    """Configuration for the simulated drone."""
-
-    # Travel speed in units per second.
-    TRAVEL_SPEED = 3.0
-
-    # Battery drain percentage per second during travel.
-    BATTERY_DRAIN_PER_SECOND = 1.5
-
-    # Distance threshold to consider the drone arrived at its target.
-    ARRIVAL_THRESHOLD = 0.25
-
-    # Timer interval in milliseconds for travel updates.
-    MOVEMENT_UPDATE_INTERVAL = 500
-
-
 class SimulatedDrone:
     """A simulated drone that uses stmpy timers to move on a 2D map."""
 
-    def __init__(self):
+    def __init__(self, config=None):
+        self.config = config or {}
         self.at_warehouse = True
         self.battery_level = 100.0
         self.has_package = False
@@ -37,13 +22,19 @@ class SimulatedDrone:
 
         self.customer_x = None
         self.customer_y = None
-        self.config = DroneConfig
 
         # MQTT handler reference (set by main)
         self.mqtt_handler = None
 
         # Sense HAT display reference (set by main)
         self.display = None
+
+        # Load movement configuration
+        movement_cfg = self.config.get('movement', {})
+        self.travel_speed = movement_cfg.get('travel_speed', 3.0)
+        self.battery_drain_per_second = movement_cfg.get('battery_drain_per_second', 1.5)
+        self.arrival_threshold = movement_cfg.get('arrival_threshold', 0.25)
+        self.movement_update_interval = movement_cfg.get('movement_update_interval', 500)
 
     def create_state_machine(self):
         transitions = [
@@ -193,29 +184,29 @@ class SimulatedDrone:
 
     def _start_travel_timer(self):
         if self.stm is not None:
-            self.stm.start_timer('travel_timer', self.config.MOVEMENT_UPDATE_INTERVAL)
+            self.stm.start_timer('travel_timer', self.movement_update_interval)
 
     def _stop_travel_timer(self):
         if self.stm is not None:
             self.stm.stop_timer('travel_timer')
 
     def _has_arrived(self):
-        return self.get_distance_to_target() <= self.config.ARRIVAL_THRESHOLD
+        return self.get_distance_to_target() <= self.arrival_threshold
 
     def get_distance_to_target(self):
         return math.hypot(self.target_x - self.position_x, self.target_y - self.position_y)
 
     def update_travel_position(self):
         distance = self.get_distance_to_target()
-        if distance <= self.config.ARRIVAL_THRESHOLD:
+        if distance <= self.arrival_threshold:
             self.position_x = self.target_x
             self.position_y = self.target_y
             logger.info("Drone is already at the current target")
             self.stm.send('arrived_at_destination')
             return
 
-        time_step = self.config.MOVEMENT_UPDATE_INTERVAL / 1000.0
-        step_distance = self.config.TRAVEL_SPEED * time_step
+        time_step = self.movement_update_interval / 1000.0
+        step_distance = self.travel_speed * time_step
 
         dx = self.target_x - self.position_x
         dy = self.target_y - self.position_y
@@ -223,7 +214,7 @@ class SimulatedDrone:
         self.position_x += dx * ratio
         self.position_y += dy * ratio
 
-        drain_amount = self.config.BATTERY_DRAIN_PER_SECOND * time_step
+        drain_amount = self.battery_drain_per_second * time_step
         self.battery_level = max(0.0, self.battery_level - drain_amount)
 
         logger.debug(

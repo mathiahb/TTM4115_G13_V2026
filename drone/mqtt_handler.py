@@ -13,12 +13,17 @@ class DroneMQTTHandler:
     Manages telemetry publishing, event publishing, and dispatch message handling.
     """
 
-    def __init__(self, drone, driver, broker_host="localhost", broker_port=1883, drone_id="drone_001"):
+    def __init__(self, drone, driver, config=None, broker_host=None, broker_port=None, drone_id="drone_001"):
         self.drone = drone
         self.driver = driver
+        self.config = config or {}
         self.drone_id = drone_id
-        self.broker_host = broker_host
-        self.broker_port = broker_port
+
+        # Extract MQTT config from config dict, with CLI overrides
+        mqtt_cfg = self.config.get('mqtt', {})
+        self.broker_host = broker_host or mqtt_cfg.get('broker_host', 'localhost')
+        self.broker_port = broker_port or mqtt_cfg.get('broker_port', 1883)
+        self.telemetry_interval = self.config.get('drone', {}).get('telemetry_interval', 5000)
 
         # MQTT client setup
         self.client = mqtt.Client()
@@ -49,8 +54,8 @@ class DroneMQTTHandler:
     def start(self):
         """Start the MQTT client loop and telemetry publishing."""
         self.client.loop_start()
-        # Start telemetry publishing every 5 seconds
-        self.telemetry_timer = stmpy.Timer("telemetry_publish", 5000, self.publish_telemetry)
+        # Start telemetry publishing with interval from config
+        self.telemetry_timer = stmpy.Timer("telemetry_publish", self.telemetry_interval, self.publish_telemetry)
         self.driver.add_timer(self.telemetry_timer)
 
     def stop(self):

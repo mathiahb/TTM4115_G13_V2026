@@ -3,8 +3,8 @@ drone:
   # Unique identifier for this drone (should match the drone_id in the server config)
   drone_id: "1"
 
-  # Telemetry publishing interval in seconds
-  telemetry_interval: 2.0
+  # Telemetry publishing interval in milliseconds
+  telemetry_interval: 2000
 
 # MQTT Broker Configuration
 mqtt:
@@ -19,6 +19,20 @@ mqtt:
     telemetry: "drones/{drone_id}/telemetry"
     dispatch: "drones/{drone_id}/dispatch"
     events: "drones/{drone_id}/events"
+
+# Drone Movement and Physics Configuration
+movement:
+  # Travel speed in units per second
+  travel_speed: 3.0
+
+  # Battery drain percentage per second during travel
+  battery_drain_per_second: 1.5
+
+  # Distance threshold to consider drone "arrived" at target (in units)
+  arrival_threshold: 0.25
+
+  # Timer interval for position updates in milliseconds
+  movement_update_interval: 500
 
 # Battery Management Configuration
 battery:
@@ -52,3 +66,19 @@ simulation:
 
   # Simulated movement speed in m/s
   movement_speed_mps: 5.0
+
+# Display Configuration
+display:
+  # Enable Sense HAT display (if available)
+  enabled: true
+
+  # Map states to RGB colors
+  colors:
+    standby: [0, 255, 0]                # Green
+    charge: [255, 255, 0]               # Yellow
+    travel_to_warehouse: [0, 100, 255]  # Blue
+    order_pickup: [0, 255, 255]         # Cyan
+    travel_to_customer: [0, 100, 255]   # Blue
+    deliver: [255, 0, 0]                # Red
+    travel_return: [200, 0, 200]        # Purple
+    off: [0, 0, 0]                      # Off
