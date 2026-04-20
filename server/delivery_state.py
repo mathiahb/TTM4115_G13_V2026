@@ -1,125 +1,92 @@
 import stmpy
 import logging
 
+logger = logging.getLogger(__name__)
 
-class ServerDeliveryState:
-    """
-    State machine representing the Server Delivery behavior.
-    Based on the UML diagram in docs/state-machine-2-server.md
-    """
 
-    def __init__(self, name):
-        self.name = name
-        self.logger = logging.getLogger(__name__)
+class DeliveryState:
+    def __init__(self, order_id: str, orders: dict, drones: dict):
+        self.order_id = order_id
+        self.orders = orders
+        self.drones = drones
 
-    def on_monitoring(self):
-        self.logger.info(f"[{self.name}] State: Monitoring - Waiting for delivery requests.")
+    def _drone_key(self) -> str | None:
+        order = self.orders.get(self.order_id)
+        if order and "drone" in order:
+            return f"Drone{order['drone']['drone_id']}"
+        return None
 
     def on_calculate_path(self):
-        self.logger.info(f"[{self.name}] State: Calculate path - Calculating optimal drone route.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "calculating_route"
+        logger.info("[%s] Calculating route", self.order_id)
 
     def on_recalculate_path(self):
-        self.logger.info(f"[{self.name}] State: Recalculate Drone Path - Modifying route due to battery drainage.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "recalculating_route"
+        logger.info("[%s] Recalculating route (low battery)", self.order_id)
 
     def on_dispatch(self):
-        self.logger.info(f"[{self.name}] State: Dispatch - Drone has been dispatched on standard route.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "dispatched"
+            dk = self._drone_key()
+            if dk and dk in self.drones:
+                self.drones[dk]["state"] = "travel_to_warehouse"
+        logger.info("[%s] Drone dispatched", self.order_id)
 
     def on_reroute(self):
-        self.logger.info(f"[{self.name}] State: Reroute - Drone has been rerouted to nearest charger.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "rerouted"
+        logger.info("[%s] Rerouted to charger", self.order_id)
+
+    def on_in_transit(self):
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "in_transit"
+            dk = self._drone_key()
+            if dk and dk in self.drones:
+                self.drones[dk]["state"] = "travel_to_customer"
+        logger.info("[%s] In transit", self.order_id)
 
     def evaluate_delivery(self, battery_level=100):
-        """
-        Compound transition (choice): returns the target state based on battery level.
-        [Battery OK] -> 'calculate_path'
-        [Unexpected Battery Drainage] -> 'recalculate_drone_path'
-        """
-        self.logger.info(f"[{self.name}] Evaluating scheduleDelivery (Battery: {battery_level}%)...")
         if battery_level >= 20:
-            self.logger.info(f"[{self.name}] Decision: [Battery OK]")
-            return 'calculate_path'
-        else:
-            self.logger.info(f"[{self.name}] Decision: [Unexpected Battery Drainage]")
-            return 'recalculate_drone_path'
+            return "calculate_path"
+        return "recalculate_drone_path"
 
 
-def create_server_delivery_machine(name):
-    server = ServerDeliveryState(name)
-
-    t0 = {
-        'source': 'initial',
-        'target': 'monitoring'
-    }
-    t_schedule = {
-        'trigger': 'scheduleDelivery',
-        'source': 'monitoring',
-        'function': server.evaluate_delivery,
-        'targets': 'calculate_path recalculate_drone_path'
-    }
-    t_calculated = {
-        'trigger': 'calc_timer',
-        'source': 'calculate_path',
-        'target': 'dispatch',
-        'effect': 'start_timer("dispatch_timer", 100)'
-    }
-    t_recalculated = {
-        'trigger': 'recalc_timer',
-        'source': 'recalculate_drone_path',
-        'target': 'reroute',
-        'effect': 'start_timer("reroute_timer", 100)'
-    }
-    t_dispatch_transit = {
-        'trigger': 'dispatch_timer',
-        'source': 'dispatch',
-        'target': 'monitoring'
-    }
-    t_reroute_transit = {
-        'trigger': 'reroute_timer',
-        'source': 'reroute',
-        'target': 'monitoring'
-    }
+def create_delivery_machine(order_id: str, orders: dict, drones: dict) -> stmpy.Machine:
+    obj = DeliveryState(order_id, orders, drones)
 
     states = [
-        {'name': 'monitoring', 'entry': 'on_monitoring'},
-        {'name': 'calculate_path', 'entry': 'on_calculate_path'},
-        {'name': 'recalculate_drone_path', 'entry': 'on_recalculate_path'},
-        {'name': 'dispatch', 'entry': 'on_dispatch'},
-        {'name': 'reroute', 'entry': 'on_reroute'},
+        {"name": "monitoring"},
+        {"name": "calculate_path", "entry": "on_calculate_path; start_timer('t_calc', 1000)"},
+        {"name": "recalculate_drone_path", "entry": "on_recalculate_path; start_timer('t_recalc', 2000)"},
+        {"name": "dispatch", "entry": "on_dispatch; start_timer('t_dispatch', 1500)"},
+        {"name": "reroute", "entry": "on_reroute; start_timer('t_reroute', 3000)"},
+        {"name": "in_transit", "entry": "on_in_transit"},
     ]
 
-    machine = stmpy.Machine(
-        name=name,
-        transitions=[
-            t0,
-            t_schedule,
-            t_calculated,
-            t_recalculated,
-            t_dispatch_transit,
-            t_reroute_transit,
-        ],
+    transitions = [
+        {"source": "initial", "target": "monitoring"},
+        {
+            "trigger": "scheduleDelivery",
+            "source": "monitoring",
+            "function": obj.evaluate_delivery,
+            "targets": "calculate_path recalculate_drone_path",
+        },
+        {"trigger": "t_calc", "source": "calculate_path", "target": "dispatch"},
+        {"trigger": "t_recalc", "source": "recalculate_drone_path", "target": "reroute"},
+        {"trigger": "t_dispatch", "source": "dispatch", "target": "in_transit"},
+        {"trigger": "t_reroute", "source": "reroute", "target": "in_transit"},
+    ]
+
+    return stmpy.Machine(
+        name=order_id,
+        transitions=transitions,
         states=states,
-        obj=server
+        obj=obj,
     )
-    return machine, server
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    driver = stmpy.Driver()
-    machine, server = create_server_delivery_machine("server_1")
-
-    driver.add_machine(machine)
-    driver.start()
-
-    import time
-    time.sleep(0.1)
-
-    print("\n--- Simulating Normal Delivery (Battery 95%) ---")
-    driver.send('scheduleDelivery', 'server_1', args=[95])
-    time.sleep(1)
-
-    print("\n--- Simulating Low Battery Delivery (Battery 15%) ---")
-    driver.send('scheduleDelivery', 'server_1', args=[15])
-    time.sleep(1)
-
-    driver.stop()

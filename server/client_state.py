@@ -1,79 +1,77 @@
 import stmpy
 import logging
+
+logger = logging.getLogger(__name__)
+
+
 class ClientState:
-    """
-    State machine representing a client's order session in the server.
-    """
-    def __init__(self, name):
-        self.name = name
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, order_id: str, orders: dict):
+        self.order_id = order_id
+        self.orders = orders
+
     def on_init(self):
-        self.logger.info(f"[{self.name}] Initializing client session.")
-    def on_cancelled(self):
-        self.logger.info(f"[{self.name}] Client cancelled the order.")
+        logger.info("[%s] Client session started", self.order_id)
+
     def on_order_finished(self):
-        self.logger.info(f"[{self.name}] Order finished. Moving to payment.")
-    def on_aborted(self):
-        self.logger.info(f"[{self.name}] Payment aborted.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["client_state"] = "awaiting_payment"
+        logger.info("[%s] Order finished, awaiting payment", self.order_id)
+
     def on_paid(self):
-        self.logger.info(f"[{self.name}] Payment successful. Session complete.")
-    def terminate_session(self):
-        self.logger.info(f"[{self.name}] Session terminated.")
+        order = self.orders.get(self.order_id)
+        if order:
+            order["client_state"] = "paid"
+        logger.info("[%s] Payment confirmed", self.order_id)
 
-def create_client_machine(name):
-    client = ClientState(name)
-    initial = {
-        'source': 'initial',
-        'target': 'waiting_for_user',
-        'effect': 'on_init'
-    }
-    t_cancelled = {
-        'trigger': 'cancelled',
-        'source': 'waiting_for_user',
-        'target': 'terminated',
-        'effect': 'on_cancelled; terminate_session'
-    }
-    t_order_finished = {
-        'trigger': 'orderFinished',
-        'source': 'waiting_for_user',
-        'target': 'waiting_for_payment',
-        'effect': 'on_order_finished'
-    }
-    t_aborted = {
-        'trigger': 'aborted',
-        'source': 'waiting_for_payment',
-        'target': 'terminated',
-        'effect': 'on_aborted; terminate_session'
-    }
-    t_paid = {
-        'trigger': 'paid',
-        'source': 'waiting_for_payment',
-        'target': 'terminated',
-        'effect': 'on_paid; terminate_session'
-    }
-    machine = stmpy.Machine(
-        name=name,
-        transitions=[initial, t_cancelled, t_order_finished, t_aborted, t_paid],
-        obj=client
+    def on_cancelled(self):
+        order = self.orders.get(self.order_id)
+        if order:
+            order["client_state"] = "cancelled"
+            order["status"] = "cancelled"
+        logger.info("[%s] Order cancelled", self.order_id)
+
+    def on_aborted(self):
+        order = self.orders.get(self.order_id)
+        if order:
+            order["client_state"] = "aborted"
+            order["status"] = "aborted"
+        logger.info("[%s] Payment aborted", self.order_id)
+
+
+def create_client_machine(order_id: str, orders: dict) -> stmpy.Machine:
+    obj = ClientState(order_id, orders)
+
+    transitions = [
+        {"source": "initial", "target": "waiting_for_user", "effect": "on_init"},
+        {
+            "trigger": "cancelled",
+            "source": "waiting_for_user",
+            "target": "terminated",
+            "effect": "on_cancelled",
+        },
+        {
+            "trigger": "orderFinished",
+            "source": "waiting_for_user",
+            "target": "waiting_for_payment",
+            "effect": "on_order_finished",
+        },
+        {
+            "trigger": "aborted",
+            "source": "waiting_for_payment",
+            "target": "terminated",
+            "effect": "on_aborted",
+        },
+        {
+            "trigger": "paid",
+            "source": "waiting_for_payment",
+            "target": "terminated",
+            "effect": "on_paid",
+        },
+    ]
+
+    return stmpy.Machine(
+        name=f"client_{order_id}",
+        transitions=transitions,
+        obj=obj,
     )
-    return machine, client
-
-
-
-# For testing independently
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    driver = stmpy.Driver()
-    machine, client = create_client_machine("client_1")
-
-    driver.add_machine(machine)
-    driver.start()
-
-    import time
-    time.sleep(0.1)
-    driver.send('orderFinished', 'client_1')
-    time.sleep(0.1)
-    driver.send('paid', 'client_1')
-    time.sleep(0.1)
-    driver.stop()
