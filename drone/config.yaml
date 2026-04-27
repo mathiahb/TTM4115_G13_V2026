@@ -6,6 +6,14 @@ drone:
   # Telemetry publishing interval in milliseconds
   telemetry_interval: 2000
 
+  # Initial drone state
+  initial_location:
+    lat: 63.4157
+    lon: 10.4060
+    gps_valid: true
+  initial_battery: 95.0
+  max_payload: 2.5
+
 # MQTT Broker Configuration
 mqtt:
   broker_host: "mqtt20.iik.ntnu.no"

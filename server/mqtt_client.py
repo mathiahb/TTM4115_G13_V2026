@@ -63,37 +63,54 @@ class MQTTClient:
             self._handle_event(payload)
 
     def _handle_telemetry(self, data: dict):
-        drone_id = data.get("drone_id")
-        if not drone_id:
+        try:
+            drone_id = data["drone_id"]
+            location = data["location"]
+            battery_level = data["battery_level"]
+            state = data["state"]
+            gps_valid = location["gps_valid"]
+            lat = location["lat"]
+            lon = location["lon"]
+        except (KeyError, TypeError) as e:
+            logger.warning("Malformed telemetry payload, missing %s", e)
             return
 
         key = f"Drone{drone_id}"
         with self._lock:
             if key in self.drones:
                 drone = self.drones[key]
-                drone["location"]["lat"] = data["location"]["lat"]
-                drone["location"]["lon"] = data["location"]["lon"]
-                drone["location"]["gps_valid"] = data["location"]["gps_valid"]
-                drone["battery_level"] = data["battery_level"]
-                drone["state"] = data["state"]
+                drone["location"]["lat"] = lat
+                drone["location"]["lon"] = lon
+                drone["location"]["gps_valid"] = gps_valid
+                drone["battery_level"] = battery_level
+                drone["state"] = state
+                if "max_payload" in data:
+                    drone["max_payload"] = data["max_payload"]
 
         logger.debug(
             "Telemetry drone=%s state=%s battery=%.1f",
             drone_id,
-            data["state"],
-            data["battery_level"],
+            state,
+            battery_level,
         )
 
     def _handle_event(self, data: dict):
-        event_type = data.get("event_type")
-        drone_id = data.get("drone_id")
+        try:
+            event_type = data["event_type"]
+            drone_id = data["drone_id"]
+        except (KeyError, TypeError) as e:
+            logger.warning("Malformed event payload, missing %s", e)
+            return
+
         order_id = data.get("order_id")
+        message = data.get("message", "")
 
         logger.info(
-            "Event drone=%s type=%s order=%s",
+            "Event drone=%s type=%s order=%s msg=%s",
             drone_id,
             event_type,
             order_id,
+            message,
         )
 
         if self.on_drone_event:

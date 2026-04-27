@@ -102,6 +102,11 @@ drones:
     max_payload: 2.5
     state: "standby"
 
+# Default Customer Location (used when frontend doesn't provide one)
+default_customer_location:
+  lat: 63.4220
+  lon: 10.4000
+
 # Battery Management Configuration
 battery:
   min_battery_for_delivery: 20.0

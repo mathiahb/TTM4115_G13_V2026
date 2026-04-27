@@ -9,6 +9,7 @@ from flask import Flask, jsonify, render_template, request, session
 
 from config_loader import (
     get_battery_config,
+    get_default_customer_location,
     get_secret_key,
     get_server_settings,
     load_config,
@@ -43,12 +44,16 @@ drones: dict[str, dict] = load_drones(config)
 battery_config = get_battery_config(config)
 
 orders: dict[str, dict] = {}
+default_customer_loc = get_default_customer_location(config)
 
 EVENT_TRIGGER_MAP = {
     "arrived": "drone_arrived",
     "package_loaded": "package_loaded",
     "delivery_completed": "delivery_completed",
     "battery_depleted": "battery_depleted",
+    "fully_charged": "fully_charged",
+    "gps_lost": "gps_lost",
+    "connection_restored": "connection_restored",
 }
 
 
@@ -179,6 +184,8 @@ def handle_orders():
         "shop_name": shop["name"],
         "shop_lat": shop["lat"],
         "shop_lon": shop["lon"],
+        "customer_lat": data.get("lat", default_customer_loc["lat"]),
+        "customer_lon": data.get("lon", default_customer_loc["lon"]),
         "item": item,
         "priority": priority,
         "status": "pending",

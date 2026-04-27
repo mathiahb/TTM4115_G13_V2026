@@ -84,15 +84,11 @@ def get_server_settings(config: dict) -> dict:
 
 
 def get_mqtt_config(config: dict) -> dict:
-    """Extract MQTT configuration.
-
-    Args:
-        config: Configuration dictionary.
-
-    Returns:
-        Dictionary with MQTT settings.
-    """
-    return config.get("mqtt", {})
+    """Extract MQTT configuration."""
+    mqtt_cfg = config.get("mqtt", {})
+    if broker := os.environ.get("MQTT_BROKER_HOST"):
+        mqtt_cfg = {**mqtt_cfg, "broker_host": broker}
+    return mqtt_cfg
 
 
 def get_mqtt_topic(config: dict, topic_name: str, drone_id: str | None = None) -> str:
@@ -154,12 +150,10 @@ def load_drones(config: dict) -> dict[str, dict]:
 
 
 def get_battery_config(config: dict) -> dict:
-    """Extract battery management configuration.
-
-    Args:
-        config: Configuration dictionary.
-
-    Returns:
-        Dictionary with battery settings.
-    """
+    """Extract battery management configuration."""
     return config.get("battery", {})
+
+
+def get_default_customer_location(config: dict) -> dict[str, float]:
+    """Extract default customer delivery location."""
+    return config.get("default_customer_location", {"lat": 63.4220, "lon": 10.4000})

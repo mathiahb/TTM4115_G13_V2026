@@ -4,12 +4,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY server/pyproject.toml server/uv.lock ./
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY server/ .
-
-ENV FLASK_SECRET=dev-secret-change-in-prod
+COPY . .
 
 EXPOSE 5000
 

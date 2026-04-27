@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 .git/
 docs/
-drone/
+*.md
+test_integration.py

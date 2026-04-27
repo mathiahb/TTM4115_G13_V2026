@@ -39,6 +39,11 @@ class DeliveryState:
             {
                 "lat": order["shop_lat"],
                 "lon": order["shop_lon"],
+                "type": "waypoint",
+            },
+            {
+                "lat": order["customer_lat"],
+                "lon": order["customer_lon"],
                 "type": "destination",
             },
         ]
@@ -109,6 +114,21 @@ class DeliveryState:
         if order:
             order["status"] = "recalculating_route"
         logger.warning("[%s] Battery depleted, rerouting", self.order_id)
+
+    def on_fully_charged(self):
+        dk = self._drone_key()
+        if dk and dk in self.drones:
+            self.drones[dk]["state"] = "standby"
+        logger.info("[%s] Drone fully charged, returning to standby", self.order_id)
+
+    def on_gps_lost(self):
+        dk = self._drone_key()
+        if dk and dk in self.drones:
+            self.drones[dk]["location"]["gps_valid"] = False
+        logger.warning("[%s] Drone GPS lost", self.order_id)
+
+    def on_connection_restored(self):
+        logger.info("[%s] Drone connection restored", self.order_id)
 
     def evaluate_delivery(self, battery_level=100):
         if battery_level >= 20:
@@ -183,6 +203,51 @@ def create_delivery_machine(
             "trigger": "battery_depleted",
             "source": "in_transit",
             "target": "recalculating_path",
+        },
+        {
+            "trigger": "fully_charged",
+            "source": "dispatched",
+            "target": "dispatched",
+        },
+        {
+            "trigger": "fully_charged",
+            "source": "at_warehouse",
+            "target": "at_warehouse",
+        },
+        {
+            "trigger": "fully_charged",
+            "source": "in_transit",
+            "target": "in_transit",
+        },
+        {
+            "trigger": "gps_lost",
+            "source": "dispatched",
+            "target": "dispatched",
+        },
+        {
+            "trigger": "gps_lost",
+            "source": "at_warehouse",
+            "target": "at_warehouse",
+        },
+        {
+            "trigger": "gps_lost",
+            "source": "in_transit",
+            "target": "in_transit",
+        },
+        {
+            "trigger": "connection_restored",
+            "source": "dispatched",
+            "target": "dispatched",
+        },
+        {
+            "trigger": "connection_restored",
+            "source": "at_warehouse",
+            "target": "at_warehouse",
+        },
+        {
+            "trigger": "connection_restored",
+            "source": "in_transit",
+            "target": "in_transit",
         },
     ]
 

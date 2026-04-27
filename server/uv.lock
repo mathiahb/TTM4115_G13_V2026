@@ -186,6 +186,9 @@ requires-dist = [
     { name = "stmpy", specifier = ">=0.7.5" },
 ]
 
+[package.metadata.requires-dev]
+dev = []
+
 [[package]]
 name = "stmpy"
 version = "0.7.5"
