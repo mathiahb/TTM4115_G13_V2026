@@ -1,32 +1,36 @@
 services:
   broker:
     image: eclipse-mosquitto:2
-    ports:
-      - "1883:1883"
+    network_mode: host
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
 
   server:
     build: ./server
-    ports:
-      - "5001:5000"
+    network_mode: host
     environment:
-      - MQTT_BROKER_HOST=broker
+      - MQTT_BROKER_HOST=localhost
       - FLASK_SECRET=${FLASK_SECRET:-dev-secret-change-in-prod}
     depends_on:
       - broker
+    restart: unless-stopped
 
   drone-1:
     build: ./drone
+    network_mode: host
     environment:
-      - MQTT_BROKER_HOST=broker
+      - MQTT_BROKER_HOST=localhost
     depends_on:
       - broker
+    restart: unless-stopped
 
   drone-2:
     build: ./drone
+    network_mode: host
     environment:
-      - MQTT_BROKER_HOST=broker
+      - MQTT_BROKER_HOST=localhost
     command: ["uv", "run", "python", "main.py", "-c", "config.yaml", "--drone-id", "2"]
     depends_on:
       - broker
+    restart: unless-stopped
