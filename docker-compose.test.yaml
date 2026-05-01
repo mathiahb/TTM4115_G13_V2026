@@ -1,0 +1,68 @@
+services:
+  broker:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ../mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health", "-m", "ok"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ../server
+    ports:
+      - "5001:5000"
+    environment:
+      - MQTT_BROKER_HOST=broker
+      - FLASK_SECRET=test-secret-integration
+    volumes:
+      - ./configs/server-config.yaml:/app/config.yaml:ro
+    depends_on:
+      broker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/shops')"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  drone-1:
+    build:
+      context: ../drone
+    environment:
+      - MQTT_BROKER_HOST=broker
+    volumes:
+      - ./configs/drone1-config.yaml:/app/config.yaml:ro
+    depends_on:
+      broker:
+        condition: service_healthy
+
+  drone-2:
+    build:
+      context: ../drone
+    environment:
+      - MQTT_BROKER_HOST=broker
+    volumes:
+      - ./configs/drone2-config.yaml:/app/config.yaml:ro
+    depends_on:
+      broker:
+        condition: service_healthy
+
+  test-runner:
+    build:
+      context: ./tests
+    environment:
+      - SERVER_URL=http://server:5000
+      - MQTT_BROKER_HOST=broker
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      server:
+        condition: service_healthy
+      drone-1:
+        condition: service_started
+      drone-2:
+        condition: service_started

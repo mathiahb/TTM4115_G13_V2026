@@ -1,0 +1,70 @@
+server:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+  secret_key_env: "FLASK_SECRET"
+  secret_key_default: "test-secret"
+
+mqtt:
+  broker_host: "broker"
+  broker_port: 1883
+  client_id_prefix: "server-test"
+  qos: 1
+  topic_prefix: "ttm4115/team13"
+  topics:
+    telemetry: "drones/{drone_id}/telemetry"
+    dispatch: "drones/{drone_id}/dispatch"
+    events: "drones/{drone_id}/events"
+
+shops:
+  - shop_id: "SHOP-001"
+    name: "Midtbyen Convenience"
+    lat: 63.4305
+    lon: 10.3951
+    items:
+      - item_id: "ITM-01"
+        name: "Coffee"
+        weight: 0.3
+      - item_id: "ITM-02"
+        name: "Sandwich"
+        weight: 0.4
+
+  - shop_id: "SHOP-002"
+    name: "Gloshaugen Market"
+    lat: 63.4157
+    lon: 10.4060
+    items:
+      - item_id: "ITM-04"
+        name: "Pizza Slice"
+        weight: 0.5
+      - item_id: "ITM-05"
+        name: "Salad Bowl"
+        weight: 0.6
+
+drones:
+  - drone_id: "1"
+    location:
+      lat: 63.4157
+      lon: 10.4060
+      gps_valid: true
+    battery_level: 95.0
+    max_payload: 2.5
+    state: "standby"
+
+  - drone_id: "2"
+    location:
+      lat: 63.4342
+      lon: 10.4060
+      gps_valid: true
+    battery_level: 95.0
+    max_payload: 2.5
+    state: "standby"
+
+default_customer_location:
+  lat: 63.4220
+  lon: 10.4000
+
+battery:
+  min_battery_for_delivery: 20.0
+  no_charging_below_distance_km: 2.0
+  charging_threshold: 30.0
