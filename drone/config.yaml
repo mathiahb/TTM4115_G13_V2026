@@ -3,8 +3,8 @@ drone:
   # Unique identifier for this drone (should match the drone_id in the server config)
   drone_id: "1"
 
-  # Telemetry publishing interval in milliseconds
-  telemetry_interval: 2000
+  # Telemetry publishing interval in seconds
+  telemetry_interval: 2
 
   # Initial drone state
   initial_location:
