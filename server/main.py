@@ -1,6 +1,7 @@
 import atexit
 import logging
 import math
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -41,6 +42,10 @@ driver.start(keep_active=True)
 
 shops: dict[str, dict] = load_shops(config)
 drones: dict[str, dict] = load_drones(config)
+_initial_drone_states: dict[str, dict] = {
+    k: {"location": dict(v["location"]), "battery_level": v["battery_level"], "state": v["state"]}
+    for k, v in drones.items()
+}
 battery_config = get_battery_config(config)
 
 orders: dict[str, dict] = {}
@@ -226,6 +231,22 @@ def get_order(order_id: str):
         order["drone"]["battery_level"] = live["battery_level"]
         order["drone"]["state"] = live["state"]
     return jsonify(order)
+
+
+if os.environ.get("TEST_MODE") == "1":
+
+    @app.route("/api/test/reset", methods=["POST"])
+    def test_reset():
+        machine_ids = list(driver._stms_by_id.keys())
+        for mid in machine_ids:
+            driver._terminate_stm(mid)
+        orders.clear()
+        for key, initial in _initial_drone_states.items():
+            if key in drones:
+                drones[key]["location"] = dict(initial["location"])
+                drones[key]["battery_level"] = initial["battery_level"]
+                drones[key]["state"] = initial["state"]
+        return jsonify({"status": "ok"})
 
 
 if __name__ == "__main__":

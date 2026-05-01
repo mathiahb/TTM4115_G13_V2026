@@ -2,10 +2,10 @@ drone:
   drone_id: "2"
   telemetry_interval: 1
   initial_location:
-    lat: 63.4342
+    lat: 63.4157
     lon: 10.4060
     gps_valid: true
-  initial_battery: 95.0
+  initial_battery: 100.0
   max_payload: 2.5
 
 mqtt:
@@ -32,13 +32,13 @@ battery:
   consumption_rate_per_km: 0.5
 
 charging:
-  full_charge_time_minutes: 30
+  full_charge_time_minutes: 1
   status_update_interval: 5.0
 
 simulation:
   enabled: true
-  battery_drain_per_second: 0.01
-  movement_speed_mps: 5.0
+  battery_drain_per_second: 0.5
+  movement_speed_mps: 300.0
 
 display:
   enabled: false

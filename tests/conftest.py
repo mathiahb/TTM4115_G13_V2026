@@ -19,13 +19,19 @@ class MQTTCollector:
     def __init__(self, broker_host: str, broker_port: int):
         self.messages: dict[str, list[dict]] = defaultdict(list)
         self._lock = threading.Lock()
+        self._pending_subscriptions: list[tuple[str, int]] = []
         self._client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id="test-collector",
         )
         self._client.on_message = self._on_message
+        self._client.on_connect = self._on_connect
         self._broker_host = broker_host
         self._broker_port = broker_port
+
+    def _on_connect(self, client, userdata, flags, reason_code, properties):
+        for topic, qos in self._pending_subscriptions:
+            client.subscribe(topic, qos=qos)
 
     def _on_message(self, client, userdata, msg):
         try:
@@ -57,7 +63,7 @@ class MQTTCollector:
         return None
 
     def subscribe(self, topic: str, qos: int = 1):
-        self._client.subscribe(topic, qos=qos)
+        self._pending_subscriptions.append((topic, qos))
 
     def start(self):
         self._client.connect(self._broker_host, self._broker_port)
@@ -69,6 +75,10 @@ class MQTTCollector:
 
     def publish(self, topic: str, payload: dict, qos: int = 1):
         self._client.publish(topic, json.dumps(payload), qos=qos)
+
+    def clear(self):
+        with self._lock:
+            self.messages.clear()
 
 
 class APIClient:
@@ -151,6 +161,47 @@ def api_client(server_url):
 @pytest.fixture()
 def fresh_session(server_url):
     return APIClient(SERVER_BASE_URL)
+
+
+def pytest_collection_modifyitems(items):
+    file_order = {
+        "test_delivery_flow": 0,
+        "test_mqtt_communication": 1,
+        "test_api": 2,
+        "test_battery": 3,
+    }
+    items.sort(key=lambda item: file_order.get(item.module.__name__, 99))
+
+
+def reset_server():
+    try:
+        resp = requests.post(f"{SERVER_BASE_URL}/api/test/reset", timeout=5)
+        assert resp.status_code == 200
+    except requests.ConnectionError:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _reset_state(mqtt_collector):
+    yield
+    reset_server()
+    mqtt_collector.clear()
+
+
+def wait_for_drone_standby(mqtt_collector, drone_id=None, timeout=15.0):
+    prefix = f"{MQTT_TOPIC_PREFIX}/drones/"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with mqtt_collector._lock:
+            for topic, msgs in mqtt_collector.messages.items():
+                if not topic.startswith(prefix) or "/telemetry" not in topic:
+                    continue
+                for msg in reversed(msgs[-5:]):
+                    if msg.get("state") == "standby":
+                        if drone_id is None or msg.get("drone_id") == drone_id:
+                            return msg
+        time.sleep(0.3)
+    return None
 
 
 def place_order(

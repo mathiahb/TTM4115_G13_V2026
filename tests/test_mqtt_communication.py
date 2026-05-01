@@ -1,4 +1,4 @@
-from conftest import MQTT_TOPIC_PREFIX, place_order
+from conftest import MQTT_TOPIC_PREFIX, place_order, wait_for_drone_standby
 
 
 def test_telemetry_published_within_interval(mqtt_collector):
@@ -45,14 +45,16 @@ def test_both_drones_publish_telemetry(mqtt_collector):
 
 
 def test_events_published_on_dispatch(fresh_session, mqtt_collector):
+    wait_for_drone_standby(mqtt_collector, timeout=30.0)
     resp = place_order(fresh_session)
     assert resp.status_code == 201
 
     drone_id = resp.json()["drone"]["drone_id"]
+    order_id = resp.json()["order_id"]
 
     arrived_event = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/events",
-        predicate=lambda m: m.get("event_type") == "arrived",
+        predicate=lambda m: m.get("event_type") == "arrived" and m.get("order_id") == order_id,
         timeout=30.0,
     )
     assert arrived_event is not None
@@ -61,14 +63,16 @@ def test_events_published_on_dispatch(fresh_session, mqtt_collector):
 
 
 def test_package_loaded_event_published(fresh_session, mqtt_collector):
+    wait_for_drone_standby(mqtt_collector, timeout=30.0)
     resp = place_order(fresh_session)
     assert resp.status_code == 201
 
     drone_id = resp.json()["drone"]["drone_id"]
+    order_id = resp.json()["order_id"]
 
     loaded_event = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/events",
-        predicate=lambda m: m.get("event_type") == "package_loaded",
+        predicate=lambda m: m.get("event_type") == "package_loaded" and m.get("order_id") == order_id,
         timeout=30.0,
     )
     assert loaded_event is not None
@@ -76,6 +80,7 @@ def test_package_loaded_event_published(fresh_session, mqtt_collector):
 
 
 def test_delivery_completed_event_published(fresh_session, mqtt_collector):
+    wait_for_drone_standby(mqtt_collector, timeout=30.0)
     resp = place_order(fresh_session)
     assert resp.status_code == 201
 
@@ -84,7 +89,7 @@ def test_delivery_completed_event_published(fresh_session, mqtt_collector):
 
     completed_event = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/events",
-        predicate=lambda m: m.get("event_type") == "delivery_completed",
+        predicate=lambda m: m.get("event_type") == "delivery_completed" and m.get("order_id") == order_id,
         timeout=45.0,
     )
     assert completed_event is not None
@@ -93,13 +98,16 @@ def test_delivery_completed_event_published(fresh_session, mqtt_collector):
 
 
 def test_event_schema_matches_contract(fresh_session, mqtt_collector):
+    wait_for_drone_standby(mqtt_collector, timeout=30.0)
     resp = place_order(fresh_session)
     assert resp.status_code == 201
 
     drone_id = resp.json()["drone"]["drone_id"]
+    order_id = resp.json()["order_id"]
 
     event = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/events",
+        predicate=lambda m: m.get("order_id") == order_id,
         timeout=20.0,
     )
     assert event is not None

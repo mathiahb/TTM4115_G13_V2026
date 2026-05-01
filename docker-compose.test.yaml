@@ -19,6 +19,7 @@ services:
     environment:
       - MQTT_BROKER_HOST=broker
       - FLASK_SECRET=test-secret-integration
+      - TEST_MODE=1
     volumes:
       - ./tests/configs/server-config.yaml:/app/config.yaml:ro
     depends_on:

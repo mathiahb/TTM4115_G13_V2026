@@ -44,19 +44,19 @@ shops:
 drones:
   - drone_id: "1"
     location:
-      lat: 63.4157
+      lat: 63.4342
       lon: 10.4060
       gps_valid: true
-    battery_level: 95.0
+    battery_level: 100.0
     max_payload: 2.5
     state: "standby"
 
   - drone_id: "2"
     location:
-      lat: 63.4342
+      lat: 63.4157
       lon: 10.4060
       gps_valid: true
-    battery_level: 95.0
+    battery_level: 100.0
     max_payload: 2.5
     state: "standby"
 
