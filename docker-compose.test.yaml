@@ -4,7 +4,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ../mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     healthcheck:
       test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health", "-m", "ok"]
       interval: 3s
@@ -13,14 +13,14 @@ services:
 
   server:
     build:
-      context: ../server
+      context: ./server
     ports:
       - "5001:5000"
     environment:
       - MQTT_BROKER_HOST=broker
       - FLASK_SECRET=test-secret-integration
     volumes:
-      - ./configs/server-config.yaml:/app/config.yaml:ro
+      - ./tests/configs/server-config.yaml:/app/config.yaml:ro
     depends_on:
       broker:
         condition: service_healthy
@@ -32,22 +32,22 @@ services:
 
   drone-1:
     build:
-      context: ../drone
+      context: ./drone
     environment:
       - MQTT_BROKER_HOST=broker
     volumes:
-      - ./configs/drone1-config.yaml:/app/config.yaml:ro
+      - ./tests/configs/drone1-config.yaml:/app/config.yaml:ro
     depends_on:
       broker:
         condition: service_healthy
 
   drone-2:
     build:
-      context: ../drone
+      context: ./drone
     environment:
       - MQTT_BROKER_HOST=broker
     volumes:
-      - ./configs/drone2-config.yaml:/app/config.yaml:ro
+      - ./tests/configs/drone2-config.yaml:/app/config.yaml:ro
     depends_on:
       broker:
         condition: service_healthy
