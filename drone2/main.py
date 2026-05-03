@@ -80,13 +80,13 @@ class DroneSTM:
 
             {"trigger": "assign_delivery", "source": "standby", "target": "travel", "effect": "on_dispatch(*)"},
 
-            {"trigger": "sim_tick", "source": "travel", "target": "travel", "effect": "on_travel_tick"},
+            {"trigger": "sim_tick", "source": "travel", "effect": "on_travel_tick"},
             {"trigger": "arrived_at_waypoint", "source": "travel", "target": "execute"},
             {"trigger": "error", "source": "travel", "target": "error", "effect": "on_error('battery_depleted')"},
 
             {"trigger": "action_done", "source": "execute", "target": "travel", "effect": "on_next_waypoint"},
             {"trigger": "to_standby", "source": "execute", "target": "standby"},
-            {"trigger": "sim_tick", "source": "execute", "target": "execute", "effect": "on_execute_tick"},
+            {"trigger": "sim_tick", "source": "execute", "effect": "on_execute_tick"},
             {"trigger": "pickup_done", "source": "execute", "target": "execute", "effect": "on_pickup_done"},
             {"trigger": "error", "source": "execute", "target": "error", "effect": "on_error('unknown')"},
 
