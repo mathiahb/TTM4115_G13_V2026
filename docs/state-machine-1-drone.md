@@ -13,39 +13,25 @@ skinparam state {
 }
 
 state "Standby" as Standby
-state "Charge" as ChargeTop
-state "Travel" as TravelToWh
-state "Order pickup" as OrderPickup
-state "Travel" as TravelToCustomer
-state "Charge" as ChargeBottom
-state "Deliver" as Deliver
-state "Travel" as TravelReturn
-state choice1 <<choice>>
+state "Travel to waypoint" as Travel
+state "Execute waypoint action" as Execute
+state "Error (Requires manual intervention)" as Error
+state "Any" as AnyState
 
 [*] --> Standby
 
-Standby -right-> ChargeTop : batteryDepleted /
-ChargeTop -left-> Standby : fullyCharged /
+Standby --> Travel : assignDelivery /
+Travel --> Execute : arrived_at_waypoint /
+Execute --> Travel : next_waypoint /
+Execute --> Standby : to_standby /
+AnyState --> Error : error /
+Error --> Standby : fixed / reset
 
-Standby --> choice1 : assignDelivery /
-
-choice1 -left-> TravelToWh : [not at warehouse]
-choice1 --> OrderPickup : [at warehouse]
-
-TravelToWh -right-> OrderPickup : arrived /
-OrderPickup -right-> TravelToCustomer : packageLoaded /
-
-TravelToCustomer -down-> ChargeBottom : batteryDepleted /
-ChargeBottom -up-> TravelToCustomer : fullyCharged /
-
-TravelToCustomer -down-> Deliver
-
-Deliver -right-> TravelReturn : deliveryCompleted /
-
-TravelReturn -up-> ChargeTop : batteryDepleted /
-ChargeTop -down-> TravelReturn : fullyCharged /
-
-TravelReturn -left-> Standby
+note right of Execute
+  Actions can be:
+  None, Pickup, Deliver,
+  Charge, Standby
+end note
 
 @enduml
 ```
