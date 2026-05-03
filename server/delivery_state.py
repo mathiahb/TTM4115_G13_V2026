@@ -113,6 +113,7 @@ class DeliveryState:
         route.extend(self._insert_charging_stops(s_lat, s_lon, c_lat, c_lon))
         route.append({"lat": c_lat, "lon": c_lon, "action": "delivery"})
         route.extend(self._insert_charging_stops(c_lat, c_lon, r_lat, r_lon))
+        route.append({"lat": r_lat, "lon": r_lon, "action": "charging"})
         route.append({"lat": r_lat, "lon": r_lon, "action": "return"})
         return route
 
