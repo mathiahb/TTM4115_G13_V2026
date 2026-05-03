@@ -156,21 +156,14 @@ class DroneSTM:
 
     def on_dispatch(self, payload: dict):
         self.order_id = payload.get("order_id")
-        self.route = payload.get("route", [])
+        raw_route = payload.get("route", [])
+        self.route = [wp for wp in raw_route if wp.get("action") != "takeoff"]
         self.route_step = 0
         priority = payload.get("package_info", {}).get("priority", "standard").lower()
         self.is_express = priority in ("express", "priority")
         logger.info("Dispatch: order=%s priority=%s waypoints=%d", self.order_id, priority, len(self.route))
-        
-        # Log full route for debugging
-        logger.info("=" * 60)
-        logger.info("FULL ROUTE for order %s:", self.order_id)
         for i, wp in enumerate(self.route):
-            action = wp.get("action", "none")
-            lat = wp.get("lat", "?")
-            lon = wp.get("lon", "?")
-            logger.info("  [%d] action=%-10s lat=%.4f lon=%.4f", i, action, lat, lon)
-        logger.info("=" * 60)
+            logger.info("  [%d] action=%-10s lat=%.4f lon=%.4f", i, wp.get("action", "none"), wp.get("lat", 0), wp.get("lon", 0))
 
     def on_enter_standby(self):
         self.state = "standby"
@@ -180,16 +173,13 @@ class DroneSTM:
         self.is_express = False
         self.location = {**self.home_location, "gps_valid": True}
         logger.info("STANDBY at (%.4f, %.4f)", self.location["lat"], self.location["lon"])
-        if self.display:
-            self._update_display("standby")
+        self._update_display("standby")
 
     def on_enter_travel(self):
         self.state = "travel"
-        self.route_step += 1
         logger.info("TRAVEL to waypoint %d/%d express=%s", self.route_step, len(self.route) - 1, self.is_express)
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
-        if self.display:
-            self._update_display("travel")
+        self._update_display("travel")
 
     def on_exit_travel(self):
         self.stm.stop_timer("sim_tick")
@@ -200,7 +190,7 @@ class DroneSTM:
             self.stm.send("arrived_at_waypoint")
             return
 
-        arrived = move_towards(self.location, target, self.movement_speed)
+        arrived = move_towards(self.location, target, self.movement_speed, self.home_location["lat"])
         self.battery_level = drain_battery(self.battery_level, self.drain_rate)
 
         if self.battery_level <= 0:
@@ -219,8 +209,7 @@ class DroneSTM:
         logger.info("EXECUTE action=%s at waypoint %d", self.current_action, self.route_step)
         
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
-        if self.display:
-            self._update_display(self.current_action)
+        self._update_display(self.current_action)
 
         match self.current_action:
             case "delivery":
@@ -231,7 +220,7 @@ class DroneSTM:
                 self.stm.start_timer(self.action_timer_id, 2000)
             case "charge" | "charging":
                 logger.info("Charging at waypoint (%.1f%%)", self.battery_level)
-            case "takeoff" | "return" | "none":
+            case "return" | "none":
                 self._finish_action()
 
     def on_execute_tick(self):
@@ -253,13 +242,13 @@ class DroneSTM:
         self.current_action = None
 
     def on_next_waypoint(self):
-        logger.info("Moving to next waypoint")
+        self.route_step += 1
+        logger.info("Moving to next waypoint %d", self.route_step)
 
     def on_error(self, error_type: str):
         logger.error("ERROR: %s at (%.4f, %.4f) battery=%.1f%%", error_type, self.location["lat"], self.location["lon"], self.battery_level)
         self._publish_event("error", f"Drone error: {error_type}")
-        if self.display:
-            self._update_display("error")
+        self._update_display("error")
 
     def on_enter_error(self):
         self.state = "error"

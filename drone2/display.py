@@ -11,7 +11,6 @@ DEFAULT_COLORS = {
     "delivery": (255, 0, 0),
     "charge": (255, 255, 0),
     "charging": (255, 255, 0),
-    "takeoff": (0, 100, 255),
     "return": (200, 0, 200),
     "error": (255, 0, 0),
     "none": (100, 100, 100),
