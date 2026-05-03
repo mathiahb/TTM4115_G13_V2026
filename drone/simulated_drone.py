@@ -325,8 +325,8 @@ class SimulatedDrone:
         self.order_id = payload["order_id"]
         self.route = payload["route"]
         self.route_step = 1
-        priority = payload.get("package_info", {}).get("priority", "standard")
-        self.is_express = priority == "express"
+        priority = payload.get("package_info", {}).get("priority", "standard").lower()
+        self.is_express = priority in ("express", "priority")
         logger.info(
             "Dispatch received: order=%s priority=%s",
             self.order_id,
