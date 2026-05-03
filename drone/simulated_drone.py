@@ -21,12 +21,31 @@ PICKUP_TIME_MS = 2000
 class SimulatedDrone:
     """Simulated drone using stmpy state machine with timer-driven movement."""
 
-    def __init__(self, config=None, mqtt_handler=None, display=None):
+    STATE_COLORS = {
+        "standby": [0, 255, 0],
+        "charging": [255, 255, 0],
+        "travel_to_warehouse": [0, 100, 255],
+        "order_pickup": [0, 255, 255],
+        "travel_to_customer": [0, 100, 255],
+        "deliver": [255, 0, 0],
+        "travel_return": [200, 0, 200],
+    }
+
+    def __init__(self, config=None, mqtt_handler=None):
         self.config = config or {}
         self.mqtt_handler = mqtt_handler
-        self.display = display
+        self.sense = None
         self.stm = None
         self.driver = None
+
+        display_cfg = self.config.get("display", {})
+        if display_cfg.get("enabled", True):
+            try:
+                from sense_hat import SenseHat
+                self.sense = SenseHat()
+            except Exception:
+                logger.warning("Sense HAT not available, LED disabled")
+                self.sense = None
 
         self.location = get_initial_location(self.config)
         self.home_location = dict(self.location)
@@ -238,6 +257,11 @@ class SimulatedDrone:
         if self.mqtt_handler:
             self.mqtt_handler.publish_event(event_type, message)
 
+    def _set_led(self, state):
+        if self.sense:
+            color = self.STATE_COLORS.get(state, [0, 0, 0])
+            self.sense.set_pixel(0, 0, color)
+
     def on_init(self):
         logger.info(
             "Drone initialized at (%.4f, %.4f) battery=%.1f%%",
@@ -256,8 +280,7 @@ class SimulatedDrone:
         self.state = "travel_to_warehouse"
         logger.info("Drone entering TRAVEL TO WAREHOUSE")
         self.stm.start_timer("sim_tick", SIM_TICK_MS)
-        if self.display:
-            self.display.set_state("travel_to_warehouse")
+        self._set_led("travel_to_warehouse")
 
     def on_exit_travel(self):
         self.stm.stop_timer("sim_tick")
@@ -281,8 +304,7 @@ class SimulatedDrone:
         self.state = "order_pickup"
         logger.info("Drone entering ORDER PICKUP")
         self.stm.start_timer("pickup_done", PICKUP_TIME_MS)
-        if self.display:
-            self.display.set_state("order_pickup")
+        self._set_led("order_pickup")
 
     def on_exit_order_pickup(self):
         self.stm.stop_timer("pickup_done")
@@ -298,8 +320,7 @@ class SimulatedDrone:
             self.get_telemetry_data(),
         )
         self.stm.start_timer("sim_tick", SIM_TICK_MS)
-        if self.display:
-            self.display.set_state("travel_to_customer")
+        self._set_led("travel_to_customer")
 
     def on_customer_tick(self):
         arrived = self._move_step()
@@ -319,8 +340,7 @@ class SimulatedDrone:
         self.state = "deliver"
         logger.info("Drone entering DELIVER")
         self._publish_event("delivery_completed", "Package delivered to customer")
-        if self.display:
-            self.display.set_state("deliver")
+        self._set_led("deliver")
         self.stm.send("delivery_completed_signal")
 
     def on_enter_travel_return(self):
@@ -332,8 +352,7 @@ class SimulatedDrone:
         ]
         self.route_step = 1
         self.stm.start_timer("sim_tick", SIM_TICK_MS)
-        if self.display:
-            self.display.set_state("travel_return")
+        self._set_led("travel_return")
 
     def on_return_tick(self):
         arrived = self._move_step()
@@ -359,15 +378,13 @@ class SimulatedDrone:
             self.location["lat"],
             self.location["lon"],
         )
-        if self.display:
-            self.display.set_state("standby")
+        self._set_led("standby")
 
     def on_enter_charging(self):
         self.state = "charging"
         logger.info("Drone entering CHARGING (%.1f%%)", self.battery_level)
         self.stm.start_timer("sim_tick", SIM_TICK_MS)
-        if self.display:
-            self.display.set_state("charge")
+        self._set_led("charging")
 
     def on_exit_charging(self):
         self.stm.stop_timer("sim_tick")
@@ -377,8 +394,6 @@ class SimulatedDrone:
 
         if self.battery_level >= self.fully_charged_threshold:
             self._publish_event("fully_charged", "Battery fully charged")
-            if self.display:
-                self.display.show_event("fully_charged")
             resume_map = {
                 "travel_to_warehouse": "resume_to_warehouse",
                 "travel_to_customer": "resume_to_customer",
