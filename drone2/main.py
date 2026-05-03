@@ -135,6 +135,16 @@ class DroneSTM:
         priority = payload.get("package_info", {}).get("priority", "standard").lower()
         self.is_express = priority in ("express", "priority")
         logger.info("Dispatch: order=%s priority=%s waypoints=%d", self.order_id, priority, len(self.route))
+        
+        # Log full route for debugging
+        logger.info("=" * 60)
+        logger.info("FULL ROUTE for order %s:", self.order_id)
+        for i, wp in enumerate(self.route):
+            action = wp.get("action", "none")
+            lat = wp.get("lat", "?")
+            lon = wp.get("lon", "?")
+            logger.info("  [%d] action=%-10s lat=%.4f lon=%.4f", i, action, lat, lon)
+        logger.info("=" * 60)
 
     def on_enter_standby(self):
         self.state = "standby"
@@ -181,6 +191,12 @@ class DroneSTM:
         wp = self._current_waypoint()
         self.current_action = (wp.get("action") or "none").lower() if wp else "none"
         logger.info("EXECUTE action=%s at waypoint %d", self.current_action, self.route_step)
+        
+        # Log supported actions for debugging
+        supported_actions = ["deliver", "pickup", "charge", "none"]
+        if self.current_action not in supported_actions:
+            logger.warning("Action '%s' not in supported actions: %s", self.current_action, supported_actions)
+        
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
         if self.display:
             self.display.set_state(self.current_action)
