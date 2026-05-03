@@ -259,8 +259,15 @@ class SimulatedDrone:
 
     def _set_led(self, state):
         if self.sense:
-            color = self.STATE_COLORS.get(state, [0, 0, 0])
-            self.sense.set_pixel(0, 0, color)
+            color = tuple(self.STATE_COLORS.get(state, [0, 0, 0]))
+            bat_count = int(self.battery_level / 100.0 * 16)
+            pixels = (
+                [color] * 16
+                + [(0, 255, 0)] * bat_count
+                + [(0, 0, 0)] * (16 - bat_count)
+                + [(0, 0, 0)] * 32
+            )
+            self.sense.set_pixels(pixels)
 
     def on_init(self):
         logger.info(
