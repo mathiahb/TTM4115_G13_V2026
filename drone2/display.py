@@ -17,6 +17,10 @@ DEFAULT_COLORS = {
     "none": (100, 100, 100),
 }
 
+BATTERY_COLOR = (0, 255, 0)
+PROGRESS_COLOR = (0, 150, 255)
+OFF = (0, 0, 0)
+
 
 class Display:
     def __init__(self, config: dict | None = None):
@@ -47,13 +51,22 @@ class Display:
             self.sense = None
             self.enabled = False
 
-    def set_state(self, state: str):
+    def update(self, state: str, battery_level: float, route_progress: float):
         if not self.enabled or not self.sense:
             return
         self.current_state = state
-        color = self.colors.get(state, (0, 0, 0))
+        color = self.colors.get(state, OFF)
+        bat_count = int(battery_level / 100.0 * 16)
+        progress_count = int(route_progress * 16)
+        pixels = (
+            [color] * 16
+            + [OFF] * 8
+            + [BATTERY_COLOR] * bat_count + [OFF] * (16 - bat_count)
+            + [OFF] * 8
+            + [PROGRESS_COLOR] * progress_count + [OFF] * (16 - progress_count)
+        )
         try:
-            self.sense.clear(color)
+            self.sense.set_pixels(pixels)
         except Exception as e:
             logger.error("Display error: %s", e)
 

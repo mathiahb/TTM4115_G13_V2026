@@ -19,7 +19,7 @@ from config_loader import (
 )
 from display import Display
 from mqtt_handler import DroneMQTTHandler
-from simulator import charge_battery, compute_charge_rate, drain_battery, move_towards
+from simulator import charge_battery, compute_charge_rate, drain_battery, haversine, move_towards
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,6 +128,32 @@ class DroneSTM:
         else:
             self.stm.send("to_standby")
 
+    def _route_progress(self) -> float:
+        if len(self.route) < 2 or self.route_step >= len(self.route):
+            return 1.0
+        total = 0.0
+        for i in range(len(self.route) - 1):
+            total += haversine(
+                self.route[i]["lat"], self.route[i]["lon"],
+                self.route[i + 1]["lat"], self.route[i + 1]["lon"],
+            )
+        if total == 0:
+            return 1.0
+        remaining = haversine(
+            self.location["lat"], self.location["lon"],
+            self.route[self.route_step]["lat"], self.route[self.route_step]["lon"],
+        )
+        for i in range(self.route_step, len(self.route) - 1):
+            remaining += haversine(
+                self.route[i]["lat"], self.route[i]["lon"],
+                self.route[i + 1]["lat"], self.route[i + 1]["lon"],
+            )
+        return max(0.0, min(1.0, 1.0 - remaining / total))
+
+    def _update_display(self, state: str):
+        if self.display:
+            self.display.update(state, self.battery_level, self._route_progress())
+
     def on_dispatch(self, payload: dict):
         self.order_id = payload.get("order_id")
         self.route = payload.get("route", [])
@@ -155,7 +181,7 @@ class DroneSTM:
         self.location = {**self.home_location, "gps_valid": True}
         logger.info("STANDBY at (%.4f, %.4f)", self.location["lat"], self.location["lon"])
         if self.display:
-            self.display.set_state("standby")
+            self._update_display("standby")
 
     def on_enter_travel(self):
         self.state = "travel"
@@ -163,7 +189,7 @@ class DroneSTM:
         logger.info("TRAVEL to waypoint %d/%d express=%s", self.route_step, len(self.route) - 1, self.is_express)
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
         if self.display:
-            self.display.set_state("travel")
+            self._update_display("travel")
 
     def on_exit_travel(self):
         self.stm.stop_timer("sim_tick")
@@ -194,7 +220,7 @@ class DroneSTM:
         
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
         if self.display:
-            self.display.set_state(self.current_action)
+            self._update_display(self.current_action)
 
         match self.current_action:
             case "delivery":
@@ -233,7 +259,7 @@ class DroneSTM:
         logger.error("ERROR: %s at (%.4f, %.4f) battery=%.1f%%", error_type, self.location["lat"], self.location["lon"], self.battery_level)
         self._publish_event("error", f"Drone error: {error_type}")
         if self.display:
-            self.display.set_state("error")
+            self._update_display("error")
 
     def on_enter_error(self):
         self.state = "error"
