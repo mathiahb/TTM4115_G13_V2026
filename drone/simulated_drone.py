@@ -257,15 +257,39 @@ class SimulatedDrone:
         if self.mqtt_handler:
             self.mqtt_handler.publish_event(event_type, message)
 
+    def _route_progress(self):
+        if len(self.route) < 2 or self.route_step >= len(self.route):
+            return 1.0
+        total = 0.0
+        for i in range(len(self.route) - 1):
+            total += self._haversine(
+                self.route[i]["lat"], self.route[i]["lon"],
+                self.route[i + 1]["lat"], self.route[i + 1]["lon"],
+            )
+        if total == 0:
+            return 1.0
+        remaining = self._dist_to_target()
+        for i in range(self.route_step, len(self.route) - 1):
+            remaining += self._haversine(
+                self.route[i]["lat"], self.route[i]["lon"],
+                self.route[i + 1]["lat"], self.route[i + 1]["lon"],
+            )
+        return max(0.0, min(1.0, 1.0 - remaining / total))
+
     def _set_led(self, state):
         if self.sense:
             color = tuple(self.STATE_COLORS.get(state, [0, 0, 0]))
+            off = (0, 0, 0)
             bat_count = int(self.battery_level / 100.0 * 16)
+            progress_count = int(self._route_progress() * 16)
             pixels = (
                 [color] * 16
+                + [off] * 8
                 + [(0, 255, 0)] * bat_count
-                + [(0, 0, 0)] * (16 - bat_count)
-                + [(0, 0, 0)] * 32
+                + [off] * (16 - bat_count)
+                + [off] * 8
+                + [(0, 150, 255)] * progress_count
+                + [off] * (16 - progress_count)
             )
             self.sense.set_pixels(pixels)
 
