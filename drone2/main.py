@@ -198,6 +198,10 @@ class DroneSTM:
         if arrived:
             logger.info("Arrived at waypoint %d", self.route_step)
             self.stm.send("arrived_at_waypoint")
+            return
+
+        # Restart the oneshot travel timer for continuous periodic updates
+        self.stm.start_timer("sim_tick", self.sim_tick_ms)
 
     def on_enter_execute(self):
         self.state = "execute"
@@ -226,6 +230,8 @@ class DroneSTM:
             if self.battery_level >= self.fully_charged_threshold:
                 self._publish_event("fully_charged", "Battery fully charged")
                 self._finish_action()
+            else:
+                self.stm.start_timer("sim_tick", self.sim_tick_ms)
 
     def on_pickup_done(self):
         self._publish_event("package_loaded", "Package loaded at warehouse")
