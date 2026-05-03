@@ -104,9 +104,8 @@ async function loadOrders() {
 }
 
 async function viewOrder(orderId) {
-    const res = await fetch(`/api/orders/${orderId}`);
-    if (!res.ok) return;
-    currentOrder = await res.json();
+    currentOrder = await fetchOrder(orderId);
+    if (!currentOrder) return;
     hide("shop-list");
     hide("shop-detail");
     show("order-status");
@@ -114,6 +113,22 @@ async function viewOrder(orderId) {
     const pos = [currentOrder.drone.location.lat, currentOrder.drone.location.lon];
     const shopPos = [currentOrder.shop_lat, currentOrder.shop_lon];
     map.fitBounds(L.latLngBounds(pos, shopPos), { padding: [50, 50] });
+}
+
+async function fetchOrder(orderId) {
+    const res = await fetch(`/api/orders/${orderId}`);
+    if (!res.ok) return null;
+    return res.json();
+}
+
+async function refreshCurrentOrder() {
+    if (!currentOrder) return;
+    const updated = await fetchOrder(currentOrder.order_id);
+    if (!updated) return;
+    currentOrder = updated;
+    if (!document.getElementById("order-status").classList.contains("hidden")) {
+        renderStatus(currentOrder);
+    }
 }
 
 function showShopItems(shop) {
@@ -162,7 +177,7 @@ async function placeOrder(shopId, itemId, priority) {
     const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shop_id: shopId, item_id: itemId, priority }),
+        body: JSON.stringify({ shop_id: shopId, item_id: itemId, priority, lat: userLatLng[0], lon: userLatLng[1] }),
     });
 
     if (!res.ok) {
@@ -215,41 +230,36 @@ document.getElementById("new-order-btn").addEventListener("click", resetView);
 let userMarker = null;
 let userLatLng = null;
 
-function onUserPosition(pos) {
-    const latlng = [pos.coords.latitude, pos.coords.longitude];
-    userLatLng = latlng;
+function createUserMarker(latlng) {
     if (userMarker) {
         userMarker.setLatLng(latlng);
     } else {
-        userMarker = L.marker(latlng, { icon: userIcon })
+        userMarker = L.marker(latlng, { icon: userIcon, draggable: true })
             .addTo(map)
-            .bindPopup("You");
+            .bindPopup("You (drag to move)");
+        userMarker.on("dragend", () => {
+            const pos = userMarker.getLatLng();
+            userLatLng = [pos.lat, pos.lng];
+        });
     }
+    userLatLng = latlng;
+}
+
+function onUserPosition(pos) {
+    createUserMarker([pos.coords.latitude, pos.coords.longitude]);
 }
 
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         onUserPosition,
-        (err) => console.warn("Geolocation error:", err.message),
+        () => createUserMarker([map.getCenter().lat, map.getCenter().lng]),
         { enableHighAccuracy: true, timeout: 10000 }
     );
-}
+} else {
+    createUserMarker([map.getCenter().lat, map.getCenter().lng]);}
 
 document.getElementById("locate-btn").addEventListener("click", () => {
-    if (userLatLng) {
-        map.flyTo(userLatLng, 15);
-    } else if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                onUserPosition(pos);
-                map.flyTo(userLatLng, 15);
-            },
-            (err) => alert("Could not get location: " + err.message),
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    } else {
-        alert("Geolocation is not supported by your browser");
-    }
+    if (userLatLng) map.flyTo(userLatLng, 15);
 });
 
 function show(id) {
@@ -262,4 +272,7 @@ function hide(id) {
 
 loadShops();
 loadOrders();
-setInterval(loadOrders, 2000);
+setInterval(() => {
+    loadOrders();
+    refreshCurrentOrder();
+}, 2000);
