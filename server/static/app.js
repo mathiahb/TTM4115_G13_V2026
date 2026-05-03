@@ -188,7 +188,7 @@ function renderStatus(order) {
         <div><strong>From:</strong> ${order.shop_name}</div>
         <div><strong>Item:</strong> ${order.item.name}</div>
         <div><strong>Status:</strong> ${order.status}</div>
-        <div><strong>ETA:</strong> ${order.eta}</div>
+        <div><strong>Priority:</strong> ${order.priority === "express" ? "Express" : "Standard"}</div>
         <div><strong>Drone:</strong> #${d.drone_id}</div>
         <div><strong>Battery:</strong> ${Math.round(d.battery_level)}%</div>
     `;

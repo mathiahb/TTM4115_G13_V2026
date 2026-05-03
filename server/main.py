@@ -154,6 +154,7 @@ def handle_orders():
                 "shop_lon": order["shop_lon"],
                 "item_name": order["item"]["name"],
                 "status": order["status"],
+                "priority": order.get("priority", "standard"),
                 "drone": {
                     "drone_id": order["drone"]["drone_id"],
                     "location": order["drone"]["location"],
