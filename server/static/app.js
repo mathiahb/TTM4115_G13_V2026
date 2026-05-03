@@ -253,3 +253,4 @@ function hide(id) {
 
 loadShops();
 loadOrders();
+setInterval(loadOrders, 2000);
