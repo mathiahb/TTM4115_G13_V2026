@@ -31,6 +31,8 @@ simulation:
   enabled: true
   battery_drain_per_second: 0.1
   movement_speed_mps: 50.0
+  express_speed_multiplier: 2.0
+  express_drain_multiplier: 3.0
 
 # Battery Configuration
 battery:

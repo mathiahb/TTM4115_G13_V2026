@@ -64,8 +64,11 @@ class SimulatedDrone:
         self.resume_target = "standby"
 
         sim_cfg = get_simulation_config(self.config)
-        self.battery_drain_rate = sim_cfg.get("battery_drain_per_second", 0.01)
-        self.movement_speed = sim_cfg.get("movement_speed_mps", 5.0)
+        self.base_drain_rate = sim_cfg.get("battery_drain_per_second", 0.01)
+        self.base_movement_speed = sim_cfg.get("movement_speed_mps", 5.0)
+        self.express_speed_mult = sim_cfg.get("express_speed_multiplier", 2.0)
+        self.express_drain_mult = sim_cfg.get("express_drain_multiplier", 3.0)
+        self.is_express = False
 
         bat_cfg = get_battery_config(self.config)
         self.fully_charged_threshold = bat_cfg.get("fully_charged_threshold", 95.0)
@@ -208,6 +211,18 @@ class SimulatedDrone:
         )
         return self.stm
 
+    @property
+    def movement_speed(self):
+        if self.is_express:
+            return self.base_movement_speed * self.express_speed_mult
+        return self.base_movement_speed
+
+    @property
+    def battery_drain_rate(self):
+        if self.is_express:
+            return self.base_drain_rate * self.express_drain_mult
+        return self.base_drain_rate
+
     @staticmethod
     def _haversine(lat1, lon1, lat2, lon2):
         R = 6371000
@@ -310,11 +325,22 @@ class SimulatedDrone:
         self.order_id = payload["order_id"]
         self.route = payload["route"]
         self.route_step = 1
-        logger.info("Dispatch received: order=%s", self.order_id)
+        priority = payload.get("package_info", {}).get("priority", "standard")
+        self.is_express = priority == "express"
+        logger.info(
+            "Dispatch received: order=%s priority=%s",
+            self.order_id,
+            priority,
+        )
 
     def on_enter_travel_to_warehouse(self):
         self.state = "travel_to_warehouse"
-        logger.info("Drone entering TRAVEL TO WAREHOUSE")
+        logger.info(
+            "Drone entering TRAVEL TO WAREHOUSE | express=%s speed=%.1f drain=%.3f",
+            self.is_express,
+            self.movement_speed,
+            self.battery_drain_rate,
+        )
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._set_led("travel_to_warehouse")
 
@@ -352,7 +378,10 @@ class SimulatedDrone:
     def on_enter_travel_to_customer(self):
         self.state = "travel_to_customer"
         logger.info(
-            "Drone entering TRAVEL TO CUSTOMER | telemetry: %s",
+            "Drone entering TRAVEL TO CUSTOMER | express=%s speed=%.1f drain=%.3f telemetry: %s",
+            self.is_express,
+            self.movement_speed,
+            self.battery_drain_rate,
             self.get_telemetry_data(),
         )
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
@@ -381,7 +410,12 @@ class SimulatedDrone:
 
     def on_enter_travel_return(self):
         self.state = "travel_return"
-        logger.info("Drone entering TRAVEL RETURN")
+        logger.info(
+            "Drone entering TRAVEL RETURN | express=%s speed=%.1f drain=%.3f",
+            self.is_express,
+            self.movement_speed,
+            self.battery_drain_rate,
+        )
         self.route = [
             {"lat": self.location["lat"], "lon": self.location["lon"]},
             {"lat": self.home_location["lat"], "lon": self.home_location["lon"]},
@@ -409,6 +443,7 @@ class SimulatedDrone:
         self.order_id = None
         self.route = []
         self.route_step = 0
+        self.is_express = False
         logger.info(
             "Drone entering STANDBY at (%.4f, %.4f)",
             self.location["lat"],
