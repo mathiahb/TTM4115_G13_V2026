@@ -23,7 +23,6 @@ function restoreView() {
 
 const shopMarkers = {};
 const droneMarkers = {};
-const routeLines = {};
 
 const shopIcon = L.divIcon({
     className: "",
@@ -76,9 +75,7 @@ async function loadOrders() {
     for (const id of Object.keys(droneMarkers)) {
         if (!currentIds.has(id)) {
             map.removeLayer(droneMarkers[id]);
-            map.removeLayer(routeLines[id]);
             delete droneMarkers[id];
-            delete routeLines[id];
         }
     }
 
@@ -90,20 +87,13 @@ async function loadOrders() {
     noOrders.classList.add("hidden");
     orderList.forEach((o) => {
         const pos = [o.drone.location.lat, o.drone.location.lon];
-        const shopPos = [o.shop_lat, o.shop_lon];
 
         if (droneMarkers[o.order_id]) {
             droneMarkers[o.order_id].setLatLng(pos);
-            routeLines[o.order_id].setLatLngs([pos, shopPos]);
         } else {
             droneMarkers[o.order_id] = L.marker(pos, { icon: droneIcon })
                 .addTo(map)
                 .bindPopup(`Drone #${o.drone.drone_id} - ${o.item_name}`);
-            routeLines[o.order_id] = L.polyline([pos, shopPos], {
-                color: "#e53935",
-                weight: 2,
-                dashArray: "6,6",
-            }).addTo(map);
         }
 
         const li = document.createElement("li");
