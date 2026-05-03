@@ -40,9 +40,9 @@ const droneIcon = L.divIcon({
 
 const userIcon = L.divIcon({
     className: "",
-    html: '<div style="background:#4285f4;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #4285f4,0 1px 3px rgba(0,0,0,.3)"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    html: '<div style="background:#4285f4;width:48px;height:48px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #4285f4,0 1px 3px rgba(0,0,0,.3)"></div>',
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
 });
 
 async function loadShops() {
@@ -238,7 +238,7 @@ function createUserMarker(latlng) {
     if (userMarker) {
         userMarker.setLatLng(latlng);
     } else {
-        userMarker = L.marker(latlng, { icon: userIcon, draggable: true })
+        userMarker = L.marker(latlng, { icon: userIcon, draggable: true, zIndexOffset: 1000 })
             .addTo(map)
             .bindPopup("You (drag to move)");
         userMarker.on("dragend", () => {
