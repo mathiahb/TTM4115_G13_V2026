@@ -16,6 +16,7 @@ class DeliveryState:
         self.orders = orders
         self.drones = drones
         self.mqtt_client = mqtt_client
+        self._dispatch_published = False
 
     def _drone_key(self) -> str | None:
         order = self.orders.get(self.order_id)
@@ -73,6 +74,7 @@ class DeliveryState:
         order = self.orders.get(self.order_id)
         if order:
             order["status"] = "recalculating_route"
+        self._dispatch_published = False
         logger.info("[%s] Recalculating route (low battery)", self.order_id)
 
     def on_dispatch(self):
@@ -82,8 +84,10 @@ class DeliveryState:
             dk = self._drone_key()
             if dk and dk in self.drones:
                 self.drones[dk]["state"] = "travel_to_warehouse"
-        self._publish_dispatch()
-        logger.info("[%s] Drone dispatched via MQTT", self.order_id)
+        if not self._dispatch_published:
+            self._publish_dispatch()
+            self._dispatch_published = True
+            logger.info("[%s] Drone dispatched via MQTT", self.order_id)
 
     def on_drone_arrived(self):
         order = self.orders.get(self.order_id)
