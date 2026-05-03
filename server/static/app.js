@@ -200,7 +200,7 @@ function renderStatus(order) {
         <div><strong>Status:</strong> ${order.status}</div>
         <div><strong>ETA:</strong> ${order.eta}</div>
         <div><strong>Drone:</strong> #${d.drone_id}</div>
-        <div><strong>Battery:</strong> ${d.battery_level}%</div>
+        <div><strong>Battery:</strong> ${Math.round(d.battery_level)}%</div>
     `;
 }
 
