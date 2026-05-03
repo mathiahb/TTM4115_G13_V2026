@@ -65,7 +65,7 @@ class DroneSTM:
         self.sim_tick_ms: int = get_sim_tick_ms(config)
 
         self.current_action: str | None = None
-        self.action_timer_id: str | None = None
+        self._execute_stop: threading.Event = threading.Event()
 
     def build_machine(self) -> stmpy.Machine:
         states = [
@@ -86,8 +86,6 @@ class DroneSTM:
 
             {"trigger": "action_done", "source": "execute", "target": "travel", "effect": "on_next_waypoint"},
             {"trigger": "to_standby", "source": "execute", "target": "standby"},
-            {"trigger": "sim_tick", "source": "execute", "effect": "on_execute_tick"},
-            {"trigger": "pickup_done", "source": "execute", "target": "execute", "effect": "on_pickup_done"},
             {"trigger": "error", "source": "execute", "target": "error", "effect": "on_error('unknown')"},
 
             {"trigger": "error", "source": "standby", "target": "error", "effect": "on_error('unknown')"},
@@ -204,41 +202,38 @@ class DroneSTM:
 
     def on_enter_execute(self):
         self.state = "execute"
+        self._execute_stop.clear()
         wp = self._current_waypoint()
         self.current_action = (wp.get("action") or "none").lower() if wp else "none"
         logger.info("EXECUTE action=%s at waypoint %d", self.current_action, self.route_step)
-        
-        self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._update_display(self.current_action)
 
         match self.current_action:
             case "delivery":
                 self._publish_event("delivery_completed", "Package delivered")
                 self._finish_action()
-            case "pickup":
-                self.action_timer_id = "pickup_timer"
-                self.stm.start_timer(self.action_timer_id, 2000)
-            case "charge" | "charging":
-                logger.info("Charging at waypoint (%.1f%%)", self.battery_level)
+            case "pickup" | "charge" | "charging":
+                threading.Thread(target=self._execute_worker, daemon=True).start()
             case "return" | "none":
                 self._finish_action()
 
-    def on_execute_tick(self):
-        if self.current_action in ("charge", "charging"):
-            self.battery_level = charge_battery(self.battery_level, self.charge_rate)
-            if self.battery_level >= self.fully_charged_threshold:
-                self._publish_event("fully_charged", "Battery fully charged")
-                self._finish_action()
-
-    def on_pickup_done(self):
-        self._publish_event("package_loaded", "Package loaded at warehouse")
-        self._finish_action()
+    def _execute_worker(self):
+        match self.current_action:
+            case "pickup":
+                if self._execute_stop.wait(2.0):
+                    return
+                self._publish_event("package_loaded", "Package loaded at warehouse")
+            case "charge" | "charging":
+                while not self._execute_stop.wait(self.sim_tick_ms / 1000.0):
+                    self.battery_level = charge_battery(self.battery_level, self.charge_rate)
+                    if self.battery_level >= self.fully_charged_threshold:
+                        self._publish_event("fully_charged", "Battery fully charged")
+                        break
+        if not self._execute_stop.is_set():
+            self._finish_action()
 
     def on_exit_execute(self):
-        self.stm.stop_timer("sim_tick")
-        if self.action_timer_id:
-            self.stm.stop_timer(self.action_timer_id)
-            self.action_timer_id = None
+        self._execute_stop.set()
         self.current_action = None
 
     def on_next_waypoint(self):
