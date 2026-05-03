@@ -27,7 +27,6 @@ class SenseHATDisplay:
         self.sense = None
         self.enabled = False
         self.current_state = None
-        self.animation_frame = 0
 
         self.colors = get_display_colors(self.config) or self.DEFAULT_COLORS.copy()
         # Fill in any missing colors from defaults
@@ -52,7 +51,6 @@ class SenseHATDisplay:
             self.enabled = False
 
     def set_state(self, state):
-        """Update display to reflect current drone state."""
         if not self.enabled or not self.sense:
             return
 
@@ -60,75 +58,30 @@ class SenseHATDisplay:
         color = self.colors.get(state, self.colors['off'])
 
         try:
-            # Fill entire matrix with state color
-            if state in ['travel_to_warehouse', 'travel_to_customer', 'travel_return']:
-                # Animated pattern for travel states
-                self._display_travel_animation(color)
-            else:
-                # Solid color for non-travel states
-                self._display_solid(color)
-
+            self.sense.set_pixel(0, 0, color)
             logger.debug(f"Display updated for state: {state}, color: {color}")
         except Exception as e:
             logger.error(f"Error updating display: {e}")
 
-    def _display_solid(self, color):
-        """Display a solid color on the entire matrix."""
-        if not self.sense:
-            return
-
-        pixel_list = [color] * 64
-        self.sense.set_pixels(pixel_list)
-        self.animation_frame = 0
-
-    def _display_travel_animation(self, color):
-        """Display an animated pattern for travel states."""
-        if not self.sense:
-            return
-
-        # Create a moving pattern - traveling dots
-        pixel_list = [(0, 0, 0)] * 64
-
-        # Create a diagonal moving pattern
-        frame = self.animation_frame % 16
-        positions = [
-            frame,
-            frame + 8,
-            (frame + 16) % 64,
-            (frame + 24) % 64,
-        ]
-
-        for pos in positions:
-            if pos < 64:
-                pixel_list[pos] = color
-
-        self.sense.set_pixels(pixel_list)
-        self.animation_frame += 1
-
     def pulse(self, color=None):
-        """Pulse the display with a color (useful for important events)."""
         if not self.enabled or not self.sense:
             return
 
         target_color = color if color else self.colors.get(self.current_state, self.colors['standby'])
 
         try:
-            # Pulse effect: fade in and out
             steps = 5
             for brightness in range(steps):
                 intensity = (brightness + 1) / steps
                 pulse_color = tuple(int(c * intensity) for c in target_color)
-                pixel_list = [pulse_color] * 64
-                self.sense.set_pixels(pixel_list)
+                self.sense.set_pixel(0, 0, pulse_color)
 
             for brightness in range(steps - 1, -1, -1):
                 intensity = (brightness + 1) / steps
                 pulse_color = tuple(int(c * intensity) for c in target_color)
-                pixel_list = [pulse_color] * 64
-                self.sense.set_pixels(pixel_list)
+                self.sense.set_pixel(0, 0, pulse_color)
 
-            # Return to solid color
-            self._display_solid(target_color)
+            self.sense.set_pixel(0, 0, target_color)
         except Exception as e:
             logger.error(f"Error during pulse animation: {e}")
 
@@ -147,13 +100,9 @@ class SenseHATDisplay:
         color = event_colors.get(event_type, (255, 255, 255))
 
         try:
-            # Flash the event color
             for _ in range(3):
-                pixel_list = [color] * 64
-                self.sense.set_pixels(pixel_list)
-                # In real implementation, would need threading to pause
-                pixel_list = [(0, 0, 0)] * 64
-                self.sense.set_pixels(pixel_list)
+                self.sense.set_pixel(0, 0, color)
+                self.sense.set_pixel(0, 0, (0, 0, 0))
         except Exception as e:
             logger.error(f"Error showing event: {e}")
 
@@ -163,7 +112,7 @@ class SenseHATDisplay:
             return
 
         try:
-            self.sense.set_pixels([(0, 0, 0)] * 64)
+            self.sense.set_pixel(0, 0, (0, 0, 0))
             self.current_state = None
         except Exception as e:
             logger.error(f"Error clearing display: {e}")

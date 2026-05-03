@@ -293,7 +293,10 @@ class SimulatedDrone:
 
     def on_enter_travel_to_customer(self):
         self.state = "travel_to_customer"
-        logger.info("Drone entering TRAVEL TO CUSTOMER")
+        logger.info(
+            "Drone entering TRAVEL TO CUSTOMER | telemetry: %s",
+            self.get_telemetry_data(),
+        )
         self.stm.start_timer("sim_tick", SIM_TICK_MS)
         if self.display:
             self.display.set_state("travel_to_customer")
