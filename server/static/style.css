@@ -110,6 +110,29 @@ ul {
 
 #map {
     flex: 1;
+    position: relative;
+}
+
+#locate-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#locate-btn:hover {
+    background: #f0f0f0;
 }
 
 #confirm-overlay {

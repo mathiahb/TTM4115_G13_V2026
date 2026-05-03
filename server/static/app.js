@@ -223,9 +223,11 @@ document.getElementById("back-btn").addEventListener("click", () => {
 document.getElementById("new-order-btn").addEventListener("click", resetView);
 
 let userMarker = null;
+let userLatLng = null;
 
 function onUserPosition(pos) {
     const latlng = [pos.coords.latitude, pos.coords.longitude];
+    userLatLng = latlng;
     if (userMarker) {
         userMarker.setLatLng(latlng);
     } else {
@@ -242,6 +244,23 @@ if (navigator.geolocation) {
         { enableHighAccuracy: true, timeout: 10000 }
     );
 }
+
+document.getElementById("locate-btn").addEventListener("click", () => {
+    if (userLatLng) {
+        map.flyTo(userLatLng, 15);
+    } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                onUserPosition(pos);
+                map.flyTo(userLatLng, 15);
+            },
+            (err) => alert("Could not get location: " + err.message),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    } else {
+        alert("Geolocation is not supported by your browser");
+    }
+});
 
 function show(id) {
     document.getElementById(id).classList.remove("hidden");
