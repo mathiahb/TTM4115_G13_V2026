@@ -70,8 +70,8 @@ class DroneSTM:
     def build_machine(self) -> stmpy.Machine:
         states = [
             {"name": "standby", "entry": "on_enter_standby"},
-            {"name": "travel", "entry": "on_enter_travel", "exit": "on_exit_travel"},
-            {"name": "execute", "entry": "on_enter_execute", "exit": "on_exit_execute"},
+            {"name": "travel", "entry": "on_enter_travel", "sim_tick": "on_travel_tick", "exit": "on_exit_travel"},
+            {"name": "execute", "entry": "on_enter_execute", "sim_tick": "on_execute_tick", "exit": "on_exit_execute"},
             {"name": "error", "entry": "on_enter_error"},
         ]
 
