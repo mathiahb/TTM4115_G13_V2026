@@ -192,28 +192,24 @@ class DroneSTM:
         self.current_action = (wp.get("action") or "none").lower() if wp else "none"
         logger.info("EXECUTE action=%s at waypoint %d", self.current_action, self.route_step)
         
-        # Log supported actions for debugging
-        supported_actions = ["deliver", "pickup", "charge", "none"]
-        if self.current_action not in supported_actions:
-            logger.warning("Action '%s' not in supported actions: %s", self.current_action, supported_actions)
-        
         self.stm.start_timer("sim_tick", self.sim_tick_ms)
         if self.display:
             self.display.set_state(self.current_action)
 
-        if self.current_action == "deliver":
-            self._publish_event("delivery_completed", "Package delivered")
-            self._finish_action()
-        elif self.current_action == "pickup":
-            self.action_timer_id = "pickup_timer"
-            self.stm.start_timer(self.action_timer_id, 2000)
-        elif self.current_action == "charge":
-            logger.info("Charging at waypoint (%.1f%%)", self.battery_level)
-        elif self.current_action == "none":
-            self._finish_action()
+        match self.current_action:
+            case "delivery":
+                self._publish_event("delivery_completed", "Package delivered")
+                self._finish_action()
+            case "pickup":
+                self.action_timer_id = "pickup_timer"
+                self.stm.start_timer(self.action_timer_id, 2000)
+            case "charge" | "charging":
+                logger.info("Charging at waypoint (%.1f%%)", self.battery_level)
+            case "takeoff" | "return" | "none":
+                self._finish_action()
 
     def on_execute_tick(self):
-        if self.current_action == "charge":
+        if self.current_action in ("charge", "charging"):
             self.battery_level = charge_battery(self.battery_level, self.charge_rate)
             if self.battery_level >= self.fully_charged_threshold:
                 self._publish_event("fully_charged", "Battery fully charged")

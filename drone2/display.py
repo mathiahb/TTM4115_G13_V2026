@@ -8,8 +8,11 @@ DEFAULT_COLORS = {
     "standby": (0, 255, 0),
     "travel": (0, 100, 255),
     "pickup": (0, 255, 255),
-    "deliver": (255, 0, 0),
+    "delivery": (255, 0, 0),
     "charge": (255, 255, 0),
+    "charging": (255, 255, 0),
+    "takeoff": (0, 100, 255),
+    "return": (200, 0, 200),
     "error": (255, 0, 0),
     "none": (100, 100, 100),
 }
