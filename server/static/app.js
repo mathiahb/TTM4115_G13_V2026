@@ -129,6 +129,10 @@ async function refreshCurrentOrder() {
     if (!document.getElementById("order-status").classList.contains("hidden")) {
         renderStatus(currentOrder);
     }
+    const d = currentOrder.drone;
+    if (droneMarkers[currentOrder.order_id]) {
+        droneMarkers[currentOrder.order_id].setLatLng([d.location.lat, d.location.lon]);
+    }
 }
 
 function showShopItems(shop) {
@@ -187,7 +191,7 @@ async function placeOrder(shopId, itemId, priority) {
     }
 
     currentOrder = await res.json();
-    loadOrders();
+    await loadOrders();
     hide("shop-detail");
     show("order-status");
     renderStatus(currentOrder);
@@ -252,7 +256,7 @@ function onUserPosition(pos) {
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         onUserPosition,
-        () => createUserMarker([map.getCenter().lat, map.getCenter().lng]),
+        () => { if (!userLatLng) createUserMarker([map.getCenter().lat, map.getCenter().lng]); },
         { enableHighAccuracy: true, timeout: 10000 }
     );
 } else {
