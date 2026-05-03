@@ -64,7 +64,8 @@ default_customer_location:
   lat: 63.4220
   lon: 10.4000
 
-battery:
+delivery:
   min_battery_for_delivery: 20.0
-  no_charging_below_distance_km: 2.0
-  charging_threshold: 30.0
+  max_range_standard_km: 5.0
+  max_range_priority_km: 3.0
+  max_single_charge_range_km: 3.0
