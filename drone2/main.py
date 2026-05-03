@@ -190,7 +190,7 @@ class DroneSTM:
             self.stm.send("arrived_at_waypoint")
             return
 
-        arrived = move_towards(self.location, target, self.movement_speed, self.home_location["lat"])
+        arrived = move_towards(self.location, target, self.movement_speed, self.home_location["lat"], self.home_location["lon"])
         self.battery_level = drain_battery(self.battery_level, self.drain_rate)
 
         if self.battery_level <= 0:

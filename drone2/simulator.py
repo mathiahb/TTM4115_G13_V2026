@@ -32,7 +32,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.asin(math.sqrt(min(1.0, a)))
 
 
-def move_towards(location: dict, target: dict, speed_mps: float, ref_lat: float, dt: float = 0.5) -> bool:
+def move_towards(location: dict, target: dict, speed_mps: float, ref_lat: float, ref_lon: float, dt: float = 0.5) -> bool:
     x, y = latlon_to_xy(location["lat"], location["lon"], ref_lat, ref_lon)
     tx, ty = latlon_to_xy(target["lat"], target["lon"], ref_lat, ref_lon)
     dist = math.sqrt((tx - x) ** 2 + (ty - y) ** 2)
