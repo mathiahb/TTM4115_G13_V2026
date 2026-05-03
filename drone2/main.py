@@ -71,7 +71,7 @@ class DroneSTM:
         states = [
             {"name": "standby", "entry": "on_enter_standby"},
             {"name": "travel", "entry": "on_enter_travel", "sim_tick": "on_travel_tick", "exit": "on_exit_travel"},
-            {"name": "execute", "entry": "on_enter_execute", "sim_tick": "on_execute_tick", "exit": "on_exit_execute"},
+            {"name": "execute", "entry": "on_enter_execute", "sim_tick": "on_execute_tick", "pickup_timer": "on_pickup_done", "exit": "on_exit_execute"},
             {"name": "error", "entry": "on_enter_error"},
         ]
 
@@ -85,7 +85,6 @@ class DroneSTM:
 
             {"trigger": "action_done", "source": "execute", "target": "travel", "effect": "on_next_waypoint"},
             {"trigger": "to_standby", "source": "execute", "target": "standby"},
-            {"trigger": "pickup_done", "source": "execute", "target": "execute", "effect": "on_pickup_done"},
             {"trigger": "error", "source": "execute", "target": "error", "effect": "on_error('unknown')"},
 
             {"trigger": "error", "source": "standby", "target": "error", "effect": "on_error('unknown')"},
