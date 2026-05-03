@@ -1,0 +1,44 @@
+drone:
+  drone_id: "1"
+  telemetry_interval: 2
+  home_location:
+    lat: 63.4157
+    lon: 10.4060
+  initial_battery: 95.0
+  max_payload: 2.5
+  sim_tick_ms: 500
+
+mqtt:
+  broker_host: "mqtt20.iik.ntnu.no"
+  broker_port: 1883
+  websocket_port: 1884
+  client_id_prefix: "drone"
+  qos: 1
+  topic_prefix: "ttm4115/team13"
+  topics:
+    telemetry: "drones/{drone_id}/telemetry"
+    dispatch: "drones/{drone_id}/dispatch"
+    events: "drones/{drone_id}/events"
+
+simulation:
+  battery_drain_per_second: 0.5
+  movement_speed_mps: 50.0
+  express_speed_multiplier: 2.0
+  express_drain_multiplier: 3.0
+
+battery:
+  fully_charged_threshold: 95.0
+
+charging:
+  full_charge_time_minutes: 0.6
+
+display:
+  enabled: true
+  colors:
+    standby: [0, 255, 0]
+    travel: [0, 100, 255]
+    pickup: [0, 255, 255]
+    deliver: [255, 0, 0]
+    charge: [255, 255, 0]
+    error: [255, 0, 0]
+    none: [100, 100, 100]
