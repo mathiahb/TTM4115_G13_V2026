@@ -38,7 +38,7 @@ This document contains only the MQTT channels and their datatypes. Possible valu
     {
       "lat": "number", // -90 to 90
       "lon": "number", // -180 to 180
-      "type": "string" // waypoint | charging_stop | destination
+      "action": "string" // takeoff | charging | pickup | delivery | return
     }
   ]
 }

@@ -102,13 +102,14 @@ As described in the [Deployment Diagram](deployment-diagram.md), communication b
       "minItems": 2,
       "items": {
         "type": "object",
-        "required": ["lat", "lon", "type"],
+        "required": ["lat", "lon", "action"],
         "properties": {
           "lat": { "type": "number", "minimum": -90, "maximum": 90 },
           "lon": { "type": "number", "minimum": -180, "maximum": 180 },
-          "type": {
+          "action": {
             "type": "string",
-            "enum": ["waypoint", "charging_stop", "destination"]
+            "enum": ["takeoff", "charging", "pickup", "delivery", "return"],
+            "description": "takeoff: drone start, charging: charge at pickup point, pickup: collect package at shop, delivery: deliver to customer, return: return to nearest pickup point"
           }
         },
         "additionalProperties": false
@@ -128,9 +129,11 @@ As described in the [Deployment Diagram](deployment-diagram.md), communication b
     "priority": "priority"
   },
   "route": [
-    { "lat": 63.4305, "lon": 10.3951, "type": "waypoint" },
-    { "lat": 63.4320, "lon": 10.4000, "type": "charging_stop" },
-    { "lat": 63.4350, "lon": 10.4100, "type": "destination" }
+    { "lat": 63.4305, "lon": 10.3951, "action": "takeoff" },
+    { "lat": 63.4320, "lon": 10.4000, "action": "charging" },
+    { "lat": 63.4157, "lon": 10.4060, "action": "pickup" },
+    { "lat": 63.4220, "lon": 10.4000, "action": "delivery" },
+    { "lat": 63.4305, "lon": 10.3951, "action": "return" }
   ]
 }
 ```

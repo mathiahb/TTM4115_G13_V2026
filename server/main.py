@@ -9,7 +9,7 @@ import stmpy
 from flask import Flask, jsonify, render_template, request, session
 
 from config_loader import (
-    get_battery_config,
+    get_delivery_config,
     get_default_customer_location,
     get_secret_key,
     get_server_settings,
@@ -46,7 +46,7 @@ _initial_drone_states: dict[str, dict] = {
     k: {"location": dict(v["location"]), "battery_level": v["battery_level"], "state": v["state"]}
     for k, v in drones.items()
 }
-battery_config = get_battery_config(config)
+delivery_config = get_delivery_config(config)
 
 orders: dict[str, dict] = {}
 default_customer_loc = get_default_customer_location(config)
@@ -102,7 +102,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def find_best_drone(shop_lat: float, shop_lon: float, weight: float) -> dict | None:
     best: dict | None = None
     best_dist: float = float("inf")
-    min_battery = battery_config.get("min_battery_for_delivery", 20.0)
+    min_battery = delivery_config.get("min_battery_for_delivery", 20.0)
 
     for drone in drones.values():
         if drone["state"] != "standby":
@@ -177,6 +177,16 @@ def handle_orders():
 
     priority: str = data.get("priority", "standard")
 
+    customer_lat = data.get("lat", default_customer_loc["lat"])
+    customer_lon = data.get("lon", default_customer_loc["lon"])
+    dist_to_shop = haversine(customer_lat, customer_lon, shop["lat"], shop["lon"])
+    if priority in ("priority", "express"):
+        max_range = delivery_config.get("max_range_priority_km", 3.0)
+    else:
+        max_range = delivery_config.get("max_range_standard_km", 5.0)
+    if dist_to_shop > max_range:
+        return jsonify({"error": f"Too far from shop (max {max_range} km for {priority} delivery)"}), 400
+
     drone = find_best_drone(shop["lat"], shop["lon"], item["weight"])
     if not drone:
         return jsonify({"error": "No available drone"}), 503
@@ -190,8 +200,8 @@ def handle_orders():
         "shop_name": shop["name"],
         "shop_lat": shop["lat"],
         "shop_lon": shop["lon"],
-        "customer_lat": data.get("lat", default_customer_loc["lat"]),
-        "customer_lon": data.get("lon", default_customer_loc["lon"]),
+        "customer_lat": customer_lat,
+        "customer_lon": customer_lon,
         "item": item,
         "priority": priority,
         "status": "pending",
@@ -208,7 +218,7 @@ def handle_orders():
     orders[order_id] = order
 
     client_machine = create_client_machine(order_id, orders)
-    delivery_machine = create_delivery_machine(order_id, orders, drones, mqtt)
+    delivery_machine = create_delivery_machine(order_id, orders, drones, mqtt, shops, delivery_config)
 
     driver.add_machine(client_machine)
     driver.add_machine(delivery_machine)

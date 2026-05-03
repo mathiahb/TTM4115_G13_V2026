@@ -149,9 +149,9 @@ def load_drones(config: dict) -> dict[str, dict]:
     return result
 
 
-def get_battery_config(config: dict) -> dict:
-    """Extract battery management configuration."""
-    return config.get("battery", {})
+def get_delivery_config(config: dict) -> dict:
+    """Extract delivery configuration."""
+    return config.get("delivery", {})
 
 
 def get_default_customer_location(config: dict) -> dict[str, float]:

@@ -1,3 +1,4 @@
+import math
 import stmpy
 import logging
 
@@ -11,11 +12,29 @@ class DeliveryState:
         orders: dict,
         drones: dict,
         mqtt_client,
+        shops: dict,
+        delivery_config: dict,
     ):
         self.order_id = order_id
         self.orders = orders
         self.drones = drones
         self.mqtt_client = mqtt_client
+        self.shops = shops
+        self.delivery_config = delivery_config
+        self._dispatch_published = False
+
+    @staticmethod
+    def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        R = 6371
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = (
+            math.sin(dlat / 2) ** 2
+            + math.cos(math.radians(lat1))
+            * math.cos(math.radians(lat2))
+            * math.sin(dlon / 2) ** 2
+        )
+        return R * 2 * math.asin(math.sqrt(a))
 
     def _drone_key(self) -> str | None:
         order = self.orders.get(self.order_id)
@@ -23,30 +42,79 @@ class DeliveryState:
             return f"Drone{order['drone']['drone_id']}"
         return None
 
-    def _get_route(self) -> list[dict]:
+    def _pickup_points(self) -> list[dict]:
+        return [
+            {"lat": s["lat"], "lon": s["lon"], "id": s["shop_id"]}
+            for s in self.shops.values()
+        ]
+
+    def _nearest_pickup(self, lat: float, lon: float) -> dict | None:
+        best = None
+        best_dist = float("inf")
+        for pp in self._pickup_points():
+            d = self._haversine(lat, lon, pp["lat"], pp["lon"])
+            if d < best_dist:
+                best = pp
+                best_dist = d
+        return best
+
+    def _insert_charging_stops(
+        self, from_lat: float, from_lon: float, to_lat: float, to_lon: float
+    ) -> list[dict]:
+        max_range = self.delivery_config.get("max_single_charge_range_km", 3.0)
+        dist = self._haversine(from_lat, from_lon, to_lat, to_lon)
+        if dist <= max_range:
+            return []
+
+        best_pp = None
+        best_remaining = float("inf")
+        for pp in self._pickup_points():
+            d_from = self._haversine(from_lat, from_lon, pp["lat"], pp["lon"])
+            if d_from > max_range or d_from < 0.01:
+                continue
+            d_to = self._haversine(pp["lat"], pp["lon"], to_lat, to_lon)
+            if d_to < dist and d_to < best_remaining:
+                best_pp = pp
+                best_remaining = d_to
+
+        if not best_pp:
+            logger.warning(
+                "[%s] No reachable charging stop between (%.4f,%.4f) and (%.4f,%.4f)",
+                self.order_id, from_lat, from_lon, to_lat, to_lon,
+            )
+            return []
+
+        stop = {"lat": best_pp["lat"], "lon": best_pp["lon"], "action": "charging"}
+        return [stop] + self._insert_charging_stops(
+            best_pp["lat"], best_pp["lon"], to_lat, to_lon
+        )
+
+    def _plan_route(self) -> list[dict]:
         order = self.orders.get(self.order_id)
         if not order:
             return []
         dk = self._drone_key()
         drone = self.drones.get(dk, {}) if dk else {}
         drone_loc = drone.get("location", {})
-        return [
-            {
-                "lat": drone_loc.get("lat", 0),
-                "lon": drone_loc.get("lon", 0),
-                "type": "waypoint",
-            },
-            {
-                "lat": order["shop_lat"],
-                "lon": order["shop_lon"],
-                "type": "waypoint",
-            },
-            {
-                "lat": order["customer_lat"],
-                "lon": order["customer_lon"],
-                "type": "destination",
-            },
-        ]
+        d_lat = drone_loc.get("lat", 0)
+        d_lon = drone_loc.get("lon", 0)
+        s_lat = order["shop_lat"]
+        s_lon = order["shop_lon"]
+        c_lat = order["customer_lat"]
+        c_lon = order["customer_lon"]
+
+        return_pp = self._nearest_pickup(c_lat, c_lon)
+        r_lat = return_pp["lat"] if return_pp else s_lat
+        r_lon = return_pp["lon"] if return_pp else s_lon
+
+        route = [{"lat": d_lat, "lon": d_lon, "action": "takeoff"}]
+        route.extend(self._insert_charging_stops(d_lat, d_lon, s_lat, s_lon))
+        route.append({"lat": s_lat, "lon": s_lon, "action": "pickup"})
+        route.extend(self._insert_charging_stops(s_lat, s_lon, c_lat, c_lon))
+        route.append({"lat": c_lat, "lon": c_lon, "action": "delivery"})
+        route.extend(self._insert_charging_stops(c_lat, c_lon, r_lat, r_lon))
+        route.append({"lat": r_lat, "lon": r_lon, "action": "return"})
+        return route
 
     def _publish_dispatch(self):
         order = self.orders.get(self.order_id)
@@ -59,7 +127,7 @@ class DeliveryState:
                 "weight": order["item"]["weight"],
                 "priority": order.get("priority", "standard"),
             },
-            "route": self._get_route(),
+            "route": self._plan_route(),
         }
         self.mqtt_client.publish_dispatch(drone_id, payload)
 
@@ -73,6 +141,7 @@ class DeliveryState:
         order = self.orders.get(self.order_id)
         if order:
             order["status"] = "recalculating_route"
+        self._dispatch_published = False
         logger.info("[%s] Recalculating route (low battery)", self.order_id)
 
     def on_dispatch(self):
@@ -82,8 +151,10 @@ class DeliveryState:
             dk = self._drone_key()
             if dk and dk in self.drones:
                 self.drones[dk]["state"] = "travel_to_warehouse"
-        self._publish_dispatch()
-        logger.info("[%s] Drone dispatched via MQTT", self.order_id)
+        if not self._dispatch_published:
+            self._publish_dispatch()
+            self._dispatch_published = True
+            logger.info("[%s] Drone dispatched via MQTT", self.order_id)
 
     def on_drone_arrived(self):
         order = self.orders.get(self.order_id)
@@ -131,7 +202,8 @@ class DeliveryState:
         logger.info("[%s] Drone connection restored", self.order_id)
 
     def evaluate_delivery(self, battery_level=100):
-        if battery_level >= 20:
+        min_battery = self.delivery_config.get("min_battery_for_delivery", 20.0)
+        if battery_level >= min_battery:
             return "calculating_path"
         return "recalculating_path"
 
@@ -141,8 +213,10 @@ def create_delivery_machine(
     orders: dict,
     drones: dict,
     mqtt_client,
+    shops: dict,
+    delivery_config: dict,
 ) -> stmpy.Machine:
-    obj = DeliveryState(order_id, orders, drones, mqtt_client)
+    obj = DeliveryState(order_id, orders, drones, mqtt_client, shops, delivery_config)
 
     states = [
         {"name": "monitoring"},

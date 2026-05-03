@@ -410,6 +410,7 @@ class SimulatedDrone:
 
     def on_enter_travel_return(self):
         self.state = "travel_return"
+        self.is_express = False
         logger.info(
             "Drone entering TRAVEL RETURN | express=%s speed=%.1f drain=%.3f",
             self.is_express,
