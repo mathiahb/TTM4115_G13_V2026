@@ -92,7 +92,7 @@ As described in the [Deployment Diagram](deployment-diagram.md), communication b
         "weight": { "type": "number", "minimum": 0 },
         "priority": {
           "type": "string",
-          "enum": ["express", "standard"]
+          "enum": ["priority", "standard"]
         }
       },
       "additionalProperties": false
@@ -125,7 +125,7 @@ As described in the [Deployment Diagram](deployment-diagram.md), communication b
   "order_id": "ORD-9876",
   "package_info": {
     "weight": 1.2,
-    "priority": "express"
+    "priority": "priority"
   },
   "route": [
     { "lat": 63.4305, "lon": 10.3951, "type": "waypoint" },

@@ -32,7 +32,7 @@ This document contains only the MQTT channels and their datatypes. Possible valu
   "order_id": "string",
   "package_info": {
     "weight": "number", // >= 0
-    "priority": "string" // express | standard
+    "priority": "string" // priority | standard
   },
   "route": [
     {
