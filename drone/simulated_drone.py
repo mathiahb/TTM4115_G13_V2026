@@ -6,22 +6,22 @@ import stmpy
 from config_loader import (
     get_battery_config,
     get_charging_config,
+    get_display_colors,
     get_initial_battery,
     get_initial_location,
     get_max_payload,
+    get_pickup_time_ms,
     get_simulation_config,
+    get_sim_tick_ms,
 )
 
 logger = logging.getLogger(__name__)
-
-SIM_TICK_MS = 500
-PICKUP_TIME_MS = 2000
 
 
 class SimulatedDrone:
     """Simulated drone using stmpy state machine with timer-driven movement."""
 
-    STATE_COLORS = {
+    DEFAULT_COLORS = {
         "standby": [0, 255, 0],
         "charging": [255, 255, 0],
         "travel_to_warehouse": [0, 100, 255],
@@ -46,6 +46,11 @@ class SimulatedDrone:
             except Exception:
                 logger.warning("Sense HAT not available, LED disabled")
                 self.sense = None
+
+        self.colors = {**self.DEFAULT_COLORS, **get_display_colors(self.config)}
+
+        self.sim_tick_ms = get_sim_tick_ms(self.config)
+        self.pickup_time_ms = get_pickup_time_ms(self.config)
 
         self.location = get_initial_location(self.config)
         self.home_location = dict(self.location)
@@ -278,7 +283,7 @@ class SimulatedDrone:
 
     def _set_led(self, state):
         if self.sense:
-            color = tuple(self.STATE_COLORS.get(state, [0, 0, 0]))
+            color = tuple(self.colors.get(state, [0, 0, 0]))
             off = (0, 0, 0)
             bat_count = int(self.battery_level / 100.0 * 16)
             progress_count = int(self._route_progress() * 16)
@@ -310,7 +315,7 @@ class SimulatedDrone:
     def on_enter_travel_to_warehouse(self):
         self.state = "travel_to_warehouse"
         logger.info("Drone entering TRAVEL TO WAREHOUSE")
-        self.stm.start_timer("sim_tick", SIM_TICK_MS)
+        self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._set_led("travel_to_warehouse")
 
     def on_exit_travel(self):
@@ -334,7 +339,7 @@ class SimulatedDrone:
     def on_enter_order_pickup(self):
         self.state = "order_pickup"
         logger.info("Drone entering ORDER PICKUP")
-        self.stm.start_timer("pickup_done", PICKUP_TIME_MS)
+        self.stm.start_timer("pickup_done", self.pickup_time_ms)
         self._set_led("order_pickup")
 
     def on_exit_order_pickup(self):
@@ -350,7 +355,7 @@ class SimulatedDrone:
             "Drone entering TRAVEL TO CUSTOMER | telemetry: %s",
             self.get_telemetry_data(),
         )
-        self.stm.start_timer("sim_tick", SIM_TICK_MS)
+        self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._set_led("travel_to_customer")
 
     def on_customer_tick(self):
@@ -382,7 +387,7 @@ class SimulatedDrone:
             {"lat": self.home_location["lat"], "lon": self.home_location["lon"]},
         ]
         self.route_step = 1
-        self.stm.start_timer("sim_tick", SIM_TICK_MS)
+        self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._set_led("travel_return")
 
     def on_return_tick(self):
@@ -414,7 +419,7 @@ class SimulatedDrone:
     def on_enter_charging(self):
         self.state = "charging"
         logger.info("Drone entering CHARGING (%.1f%%)", self.battery_level)
-        self.stm.start_timer("sim_tick", SIM_TICK_MS)
+        self.stm.start_timer("sim_tick", self.sim_tick_ms)
         self._set_led("charging")
 
     def on_exit_charging(self):
