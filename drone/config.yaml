@@ -1,19 +1,13 @@
-# Drone Configuration
 drone:
   drone_id: "1"
   telemetry_interval: 2
-
-  initial_location:
+  home_location:
     lat: 63.4157
     lon: 10.4060
-    gps_valid: true
   initial_battery: 95.0
   max_payload: 2.5
-
   sim_tick_ms: 500
-  pickup_time_ms: 2000
 
-# MQTT Broker Configuration
 mqtt:
   broker_host: "mqtt20.iik.ntnu.no"
   broker_port: 1883
@@ -26,30 +20,26 @@ mqtt:
     dispatch: "drones/{drone_id}/dispatch"
     events: "drones/{drone_id}/events"
 
-# Simulation Configuration
 simulation:
-  enabled: true
   battery_drain_per_second: 0.5
   movement_speed_mps: 50.0
   express_speed_multiplier: 2.0
   express_drain_multiplier: 3.0
 
-# Battery Configuration
 battery:
   fully_charged_threshold: 95.0
 
-# Charging Configuration
 charging:
   full_charge_time_minutes: 0.6
 
-# Display Configuration
 display:
   enabled: true
   colors:
     standby: [0, 255, 0]
+    travel: [0, 100, 255]
+    pickup: [0, 255, 255]
+    delivery: [255, 0, 0]
     charging: [255, 255, 0]
-    travel_to_warehouse: [0, 100, 255]
-    order_pickup: [0, 255, 255]
-    travel_to_customer: [0, 100, 255]
-    deliver: [255, 0, 0]
-    travel_return: [200, 0, 200]
+    return: [200, 0, 200]
+    error: [255, 0, 0]
+    none: [100, 100, 100]

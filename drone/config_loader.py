@@ -48,28 +48,11 @@ def get_mqtt_topic(config: dict, topic_name: str, drone_id: str | None = None) -
     return pattern
 
 
-def get_simulation_config(config: dict) -> dict:
-    return config.get("simulation", {})
-
-
-def get_battery_config(config: dict) -> dict:
-    return config.get("battery", {})
-
-
-def get_charging_config(config: dict) -> dict:
-    return config.get("charging", {})
-
-
-def get_telemetry_interval(config: dict) -> float:
-    return config.get("drone", {}).get("telemetry_interval", 2.0)
-
-
-def get_initial_location(config: dict) -> dict:
-    loc = config.get("drone", {}).get("initial_location", {})
+def get_home_location(config: dict) -> dict:
+    loc = config.get("drone", {}).get("home_location", {})
     return {
         "lat": loc.get("lat", 63.4157),
         "lon": loc.get("lon", 10.4060),
-        "gps_valid": loc.get("gps_valid", True),
     }
 
 
@@ -85,9 +68,21 @@ def get_sim_tick_ms(config: dict) -> int:
     return config.get("drone", {}).get("sim_tick_ms", 500)
 
 
-def get_pickup_time_ms(config: dict) -> int:
-    return config.get("drone", {}).get("pickup_time_ms", 2000)
+def get_telemetry_interval(config: dict) -> float:
+    return config.get("drone", {}).get("telemetry_interval", 2.0)
 
 
-def get_display_colors(config: dict) -> dict:
-    return config.get("display", {}).get("colors", {})
+def get_simulation_params(config: dict) -> dict:
+    return config.get("simulation", {})
+
+
+def get_battery_params(config: dict) -> dict:
+    return config.get("battery", {})
+
+
+def get_charging_params(config: dict) -> dict:
+    return config.get("charging", {})
+
+
+def get_display_config(config: dict) -> dict:
+    return config.get("display", {})
