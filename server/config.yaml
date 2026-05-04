@@ -110,6 +110,6 @@ default_customer_location:
 # Delivery Configuration
 delivery:
   min_battery_for_delivery: 20.0
-  max_range_standard_km: 10.0
-  max_range_priority_km: 8.0
-  max_single_charge_range_km: 8.0
+  max_range_standard_km: 5.0
+  max_range_priority_km: 4.0
+  max_single_charge_range_km: 4.0

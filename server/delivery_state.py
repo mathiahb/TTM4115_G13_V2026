@@ -238,6 +238,15 @@ class DeliveryState:
     def on_connection_restored(self):
         logger.info("[%s] Drone connection restored", self.order_id)
 
+    def on_drone_error(self):
+        order = self.orders.get(self.order_id)
+        if order:
+            order["status"] = "failed"
+            dk = self._drone_key()
+            if dk and dk in self.drones:
+                self.drones[dk]["state"] = "error"
+        logger.error("[%s] Delivery failed due to drone error", self.order_id)
+
     def evaluate_delivery(self, battery_level=100):
         min_battery = self.delivery_config.get("min_battery_for_delivery", 20.0)
         if battery_level >= min_battery:
@@ -269,6 +278,7 @@ def create_delivery_machine(
         {"name": "at_warehouse", "entry": "on_drone_arrived"},
         {"name": "in_transit", "entry": "on_package_loaded"},
         {"name": "completed", "entry": "on_delivery_completed"},
+        {"name": "failed", "entry": "on_drone_error"},
     ]
 
     transitions = [
@@ -359,6 +369,21 @@ def create_delivery_machine(
             "trigger": "connection_restored",
             "source": "in_transit",
             "target": "in_transit",
+        },
+        {
+            "trigger": "drone_error",
+            "source": "dispatched",
+            "target": "failed",
+        },
+        {
+            "trigger": "drone_error",
+            "source": "at_warehouse",
+            "target": "failed",
+        },
+        {
+            "trigger": "drone_error",
+            "source": "in_transit",
+            "target": "failed",
         },
     ]
 

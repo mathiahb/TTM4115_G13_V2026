@@ -38,6 +38,13 @@ class ClientState:
             order["status"] = "aborted"
         logger.info("[%s] Payment aborted", self.order_id)
 
+    def on_failed(self):
+        order = self.orders.get(self.order_id)
+        if order:
+            order["client_state"] = "failed"
+            order["status"] = "failed"
+        logger.error("[%s] Order failed", self.order_id)
+
 
 def create_client_machine(order_id: str, orders: dict) -> stmpy.Machine:
     obj = ClientState(order_id, orders)
@@ -67,6 +74,18 @@ def create_client_machine(order_id: str, orders: dict) -> stmpy.Machine:
             "source": "waiting_for_payment",
             "target": "terminated",
             "effect": "on_paid",
+        },
+        {
+            "trigger": "orderFailed",
+            "source": "waiting_for_user",
+            "target": "terminated",
+            "effect": "on_failed",
+        },
+        {
+            "trigger": "orderFailed",
+            "source": "waiting_for_payment",
+            "target": "terminated",
+            "effect": "on_failed",
         },
     ]
 

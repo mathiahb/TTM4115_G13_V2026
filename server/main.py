@@ -63,6 +63,7 @@ EVENT_TRIGGER_MAP = {
     "fully_charged": "fully_charged",
     "gps_lost": "gps_lost",
     "connection_restored": "connection_restored",
+    "error": "drone_error",
 }
 
 
@@ -73,16 +74,22 @@ def handle_drone_event(
     if not trigger:
         return
 
-    if order_id and order_id in orders:
-        driver.send(trigger, order_id)
-        return
+    target_oid = None
 
-    for oid, order in orders.items():
-        if order.get("status") in ("completed", "cancelled", "aborted"):
-            continue
-        if order.get("drone", {}).get("drone_id") == drone_id:
-            driver.send(trigger, oid)
-            return
+    if order_id and order_id in orders:
+        target_oid = order_id
+    else:
+        for oid, order in orders.items():
+            if order.get("status") in ("completed", "cancelled", "aborted", "failed"):
+                continue
+            if order.get("drone", {}).get("drone_id") == drone_id:
+                target_oid = oid
+                break
+
+    if target_oid:
+        driver.send(trigger, target_oid)
+        if trigger == "drone_error":
+            driver.send("orderFailed", f"client_{target_oid}")
 
 
 mqtt = MQTTClient(config, drones, on_drone_event=handle_drone_event)
