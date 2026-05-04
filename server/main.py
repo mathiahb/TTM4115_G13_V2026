@@ -8,9 +8,10 @@ from datetime import datetime, timezone
 import stmpy
 from flask import Flask, jsonify, render_template, request, session
 
+from client_state import create_client_machine
 from config_loader import (
-    get_delivery_config,
     get_default_customer_location,
+    get_delivery_config,
     get_secret_key,
     get_server_settings,
     load_config,
@@ -20,7 +21,6 @@ from config_loader import (
 )
 from delivery_state import create_delivery_machine
 from mqtt_client import MQTTClient
-from client_state import create_client_machine
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,7 +43,11 @@ driver.start(keep_active=True)
 shops: dict[str, dict] = load_shops(config)
 drones: dict[str, dict] = load_drones(config)
 _initial_drone_states: dict[str, dict] = {
-    k: {"location": dict(v["location"]), "battery_level": v["battery_level"], "state": v["state"]}
+    k: {
+        "location": dict(v["location"]),
+        "battery_level": v["battery_level"],
+        "state": v["state"],
+    }
     for k, v in drones.items()
 }
 delivery_config = get_delivery_config(config)
@@ -147,22 +151,24 @@ def handle_orders():
                 order["drone"]["location"] = dict(live["location"])
                 order["drone"]["battery_level"] = live["battery_level"]
                 order["drone"]["state"] = live["state"]
-            result.append({
-                "order_id": order["order_id"],
-                "shop_name": order["shop_name"],
-                "shop_lat": order["shop_lat"],
-                "shop_lon": order["shop_lon"],
-                "item_name": order["item"]["name"],
-                "status": order["status"],
-                "priority": order.get("priority", "standard"),
-                "drone": {
-                    "drone_id": order["drone"]["drone_id"],
-                    "location": order["drone"]["location"],
-                    "battery_level": order["drone"]["battery_level"],
-                    "state": order["drone"]["state"],
-                },
-                "created_at": order["created_at"],
-            })
+            result.append(
+                {
+                    "order_id": order["order_id"],
+                    "shop_name": order["shop_name"],
+                    "shop_lat": order["shop_lat"],
+                    "shop_lon": order["shop_lon"],
+                    "item_name": order["item"]["name"],
+                    "status": order["status"],
+                    "priority": order.get("priority", "standard"),
+                    "drone": {
+                        "drone_id": order["drone"]["drone_id"],
+                        "location": order["drone"]["location"],
+                        "battery_level": order["drone"]["battery_level"],
+                        "state": order["drone"]["state"],
+                    },
+                    "created_at": order["created_at"],
+                }
+            )
         return jsonify(sorted(result, key=lambda o: o["created_at"], reverse=True))
 
     data = request.json
@@ -179,13 +185,20 @@ def handle_orders():
 
     customer_lat = data.get("lat", default_customer_loc["lat"])
     customer_lon = data.get("lon", default_customer_loc["lon"])
-    dist_to_shop = haversine(customer_lat, customer_lon, shop["lat"], shop["lon"])
+    dist_to_closest_shop = min(
+        haversine(customer_lat, customer_lon, s["lat"], s["lon"])
+        for s in shops.values()
+    )
     if priority in ("priority", "express"):
         max_range = delivery_config.get("max_range_priority_km", 3.0)
     else:
         max_range = delivery_config.get("max_range_standard_km", 5.0)
-    if dist_to_shop > max_range:
-        return jsonify({"error": f"Too far from shop (max {max_range} km for {priority} delivery)"}), 400
+    if dist_to_closest_shop > max_range:
+        return jsonify(
+            {
+                "error": f"Too far from nearest shop (max {max_range} km for {priority} delivery)"
+            }
+        ), 400
 
     drone = find_best_drone(shop["lat"], shop["lon"], item["weight"])
     if not drone:
@@ -218,7 +231,9 @@ def handle_orders():
     orders[order_id] = order
 
     client_machine = create_client_machine(order_id, orders)
-    delivery_machine = create_delivery_machine(order_id, orders, drones, mqtt, shops, delivery_config)
+    delivery_machine = create_delivery_machine(
+        order_id, orders, drones, mqtt, shops, delivery_config
+    )
 
     driver.add_machine(client_machine)
     driver.add_machine(delivery_machine)
@@ -262,4 +277,5 @@ if os.environ.get("TEST_MODE") == "1":
 
 if __name__ == "__main__":
     settings = get_server_settings(config)
+    settings.setdefault("use_reloader", False)
     app.run(**settings)

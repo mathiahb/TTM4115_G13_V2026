@@ -1,6 +1,8 @@
-import math
-import stmpy
+import heapq
 import logging
+import math
+
+import stmpy
 
 logger = logging.getLogger(__name__)
 
@@ -66,28 +68,62 @@ class DeliveryState:
         if dist <= max_range:
             return []
 
-        best_pp = None
-        best_remaining = float("inf")
-        for pp in self._pickup_points():
-            d_from = self._haversine(from_lat, from_lon, pp["lat"], pp["lon"])
-            if d_from > max_range or d_from < 0.01:
+        points = self._pickup_points()
+        start = {"id": "start", "lat": from_lat, "lon": from_lon}
+        end = {"id": "end", "lat": to_lat, "lon": to_lon}
+        all_points = [start, end] + points
+
+        graph = {p["id"]: [] for p in all_points}
+        for p1 in all_points:
+            for p2 in all_points:
+                if p1["id"] == p2["id"]:
+                    continue
+                d = self._haversine(p1["lat"], p1["lon"], p2["lat"], p2["lon"])
+                if d <= max_range:
+                    graph[p1["id"]].append((p2["id"], d))
+
+        queue = [(0, 0, "start", [])]
+        visited = set()
+
+        while queue:
+            f, g, current_id, path = heapq.heappop(queue)
+
+            if current_id == "end":
+                stops = []
+                for pid in path:
+                    p = next(p for p in points if p["id"] == pid)
+                    stops.append(
+                        {"lat": p["lat"], "lon": p["lon"], "action": "charging"}
+                    )
+                return stops
+
+            if current_id in visited:
                 continue
-            d_to = self._haversine(pp["lat"], pp["lon"], to_lat, to_lon)
-            if d_to < dist and d_to < best_remaining:
-                best_pp = pp
-                best_remaining = d_to
+            visited.add(current_id)
 
-        if not best_pp:
-            logger.warning(
-                "[%s] No reachable charging stop between (%.4f,%.4f) and (%.4f,%.4f)",
-                self.order_id, from_lat, from_lon, to_lat, to_lon,
-            )
-            return []
+            for neighbor_id, dist_to_neighbor in graph[current_id]:
+                if neighbor_id not in visited:
+                    new_path = list(path)
+                    if neighbor_id != "end":
+                        new_path.append(neighbor_id)
 
-        stop = {"lat": best_pp["lat"], "lon": best_pp["lon"], "action": "charging"}
-        return [stop] + self._insert_charging_stops(
-            best_pp["lat"], best_pp["lon"], to_lat, to_lon
+                    p_neighbor = next(p for p in all_points if p["id"] == neighbor_id)
+                    h = self._haversine(
+                        p_neighbor["lat"], p_neighbor["lon"], to_lat, to_lon
+                    )
+
+                    new_g = g + dist_to_neighbor
+                    heapq.heappush(queue, (new_g + h, new_g, neighbor_id, new_path))
+
+        logger.warning(
+            "[%s] No reachable charging path between (%.4f,%.4f) and (%.4f,%.4f)",
+            self.order_id,
+            from_lat,
+            from_lon,
+            to_lat,
+            to_lon,
         )
+        return []
 
     def _plan_route(self) -> list[dict]:
         order = self.orders.get(self.order_id)

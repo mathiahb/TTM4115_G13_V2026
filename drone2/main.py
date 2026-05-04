@@ -136,16 +136,17 @@ class DroneSTM:
             )
         if total == 0:
             return 1.0
-        remaining = haversine(
-            self.location["lat"], self.location["lon"],
-            self.route[self.route_step]["lat"], self.route[self.route_step]["lon"],
-        )
-        for i in range(self.route_step, len(self.route) - 1):
-            remaining += haversine(
+        covered = 0.0
+        for i in range(self.route_step):
+            covered += haversine(
                 self.route[i]["lat"], self.route[i]["lon"],
                 self.route[i + 1]["lat"], self.route[i + 1]["lon"],
             )
-        return max(0.0, min(1.0, 1.0 - remaining / total))
+        covered += haversine(
+            self.route[self.route_step]["lat"], self.route[self.route_step]["lon"],
+            self.location["lat"], self.location["lon"],
+        )
+        return max(0.0, min(1.0, covered / total))
 
     def _update_display(self, state: str):
         if self.display:
