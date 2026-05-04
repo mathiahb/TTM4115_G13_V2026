@@ -217,7 +217,6 @@ class DroneSTM:
                 self._publish_event("delivery_completed", "Package delivered")
                 self._finish_action()
             case "pickup":
-                self._publish_event("arrived", "Arrived at pickup")
                 self.action_timer_id = "pickup_timer"
                 self.stm.start_timer(self.action_timer_id, 2000)
             case "charge" | "charging":
@@ -228,6 +227,7 @@ class DroneSTM:
     def on_execute_tick(self):
         if self.current_action in ("charge", "charging"):
             self.battery_level = charge_battery(self.battery_level, self.charge_rate)
+            self._update_display(self.current_action)
             if self.battery_level >= self.fully_charged_threshold:
                 self._publish_event("fully_charged", "Battery fully charged")
                 self._finish_action()
