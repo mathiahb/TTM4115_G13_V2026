@@ -306,6 +306,11 @@ def create_delivery_machine(
             "target": "in_transit",
         },
         {
+            "trigger": "package_loaded",
+            "source": "dispatched",
+            "target": "in_transit",
+        },
+        {
             "trigger": "delivery_completed",
             "source": "in_transit",
             "target": "completed",

@@ -219,6 +219,7 @@ class DroneSTM:
                 self._publish_event("delivery_completed", "Package delivered")
                 self._finish_action()
             case "pickup":
+                self._publish_event("arrived", "Arrived at pickup")
                 self.action_timer_id = "pickup_timer"
                 self.stm.start_timer(self.action_timer_id, 2000)
             case "charge" | "charging":
