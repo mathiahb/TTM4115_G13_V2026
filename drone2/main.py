@@ -189,6 +189,7 @@ class DroneSTM:
 
         arrived = move_towards(self.location, target, self.movement_speed, self.home_location["lat"], self.home_location["lon"])
         self.battery_level = drain_battery(self.battery_level, self.drain_rate)
+        self._update_display("travel")
 
         if self.battery_level <= 0:
             self._publish_event("battery_depleted", "Battery depleted during travel")
