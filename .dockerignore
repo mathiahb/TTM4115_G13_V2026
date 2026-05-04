@@ -1,7 +1,0 @@
-__pycache__/
-.venv/
-*.pyc
-.git/
-docs/
-*.md
-test_integration.py

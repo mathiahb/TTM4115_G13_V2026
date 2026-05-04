@@ -1,8 +1,0 @@
-services:
-  drone:
-    build: ./drone
-    network_mode: host
-    environment:
-      - MQTT_BROKER_HOST=${SERVER_HOST:?Set SERVER_HOST in .env}
-    command: ["uv", "run", "python", "main.py", "-c", "config.yaml", "--drone-id", "${DRONE_ID:-1}"]
-    restart: unless-stopped
