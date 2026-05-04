@@ -33,7 +33,7 @@ services:
 
   drone-1:
     build:
-      context: ./drone
+      context: ./drone2
     environment:
       - MQTT_BROKER_HOST=broker
     volumes:
@@ -44,7 +44,7 @@ services:
 
   drone-2:
     build:
-      context: ./drone
+      context: ./drone2
     environment:
       - MQTT_BROKER_HOST=broker
     volumes:

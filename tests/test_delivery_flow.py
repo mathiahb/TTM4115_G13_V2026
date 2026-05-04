@@ -86,9 +86,8 @@ def test_drone_battery_decreases_during_travel(fresh_session, mqtt_collector):
     first_telemetry = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/telemetry",
         predicate=lambda m: m.get("state") in (
-            "travel_to_warehouse",
-            "travel_to_customer",
-            "travel_return",
+            "travel",
+            "execute",
         ),
         timeout=20.0,
     )
@@ -115,7 +114,7 @@ def test_telemetry_reflects_drone_location_changes(fresh_session, mqtt_collector
 
     first = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/telemetry",
-        predicate=lambda m: m.get("state") == "travel_to_warehouse",
+        predicate=lambda m: m.get("state") == "travel",
         timeout=15.0,
     )
     assert first is not None
@@ -125,7 +124,7 @@ def test_telemetry_reflects_drone_location_changes(fresh_session, mqtt_collector
     moved = mqtt_collector.wait_for_message(
         f"{MQTT_TOPIC_PREFIX}/drones/{drone_id}/telemetry",
         predicate=lambda m: (
-            m.get("state") == "travel_to_warehouse"
+            m.get("state") == "travel"
             and (
                 m["location"]["lat"] != initial_lat
                 or m["location"]["lon"] != initial_lon
