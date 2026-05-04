@@ -237,6 +237,9 @@ def handle_orders():
     }
     orders[order_id] = order
 
+    # Client machine is scaffolded for future use (see client_state.py).
+    # Currently bypassed: orderFinished and paid are sent back-to-back below,
+    # so the machine transitions straight to "terminated".
     client_machine = create_client_machine(order_id, orders)
     delivery_machine = create_delivery_machine(
         order_id, orders, drones, mqtt, shops, delivery_config

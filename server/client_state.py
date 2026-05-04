@@ -4,6 +4,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# NOTE: This state machine is scaffolded for future implementation of real
+# client-facing interactions (e.g. waiting for user input, payment confirmation).
+# Currently the server bypasses it by sending orderFinished and paid immediately
+# on order creation, so the machine races to "terminated" without pausing.
+# See server/main.py around the create_client_machine call.
 class ClientState:
     def __init__(self, order_id: str, orders: dict):
         self.order_id = order_id

@@ -4,11 +4,17 @@ Drone delivery system with a Flask server, simulated drones, and MQTT-based comm
 
 ## Running
 
-All on one system
+Start the server:
 ```bash
-docker compose up --build
+cd server && python main.py
+```
+Server at `http://localhost:5000` (configurable in `server/config.yaml`).
+
+Start a drone:
+```bash
+cd drone && python main.py
+# or with a specific config and drone ID:
+python main.py -c config.yaml --drone-id 1
 ```
 
-Server at `http://localhost:5001`, MQTT broker on port `1883`.
-
-To run the simulated drones one can run main.py in the drone repo, the same for the server and webclient, run main.py in the server repo.
+MQTT broker is at `mqtt20.iik.ntnu.no:1883` by default (configured in `config.yaml`).
